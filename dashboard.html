@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>لوحة التحكم – نظام إدارة الزيارات التفتيشية</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="loader-overlay" id="loaderOverlay"><div class="spinner"></div></div>
+<div id="nav"></div>
+<div class="container">
+  <div class="page-header">
+    <h2>⚙️ <span>لوحة تحكم المدير</span></h2>
+    <button class="btn btn-accent" onclick="openModal()">➕ إضافة حساب</button>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-icon blue">🏢</div><div class="stat-info"><h3 id="cInst">0</h3><p>المؤسسات</p></div></div>
+    <div class="stat-card"><div class="stat-icon amber">🔍</div><div class="stat-info"><h3 id="cInsp">0</h3><p>المفتشون</p></div></div>
+    <div class="stat-card"><div class="stat-icon green">📋</div><div class="stat-info"><h3 id="cVis">0</h3><p>إجمالي الزيارات</p></div></div>
+    <div class="stat-card"><div class="stat-icon blue">🎓</div><div class="stat-info"><h3 id="cPri">0</h3><p>زيارات الابتدائي</p></div></div>
+    <div class="stat-card"><div class="stat-icon amber">🎓</div><div class="stat-info"><h3 id="cMid">0</h3><p>زيارات المتوسط</p></div></div>
+    <div class="stat-card"><div class="stat-icon green">🎓</div><div class="stat-info"><h3 id="cSec">0</h3><p>زيارات الثانوي</p></div></div>
+  </div>
+
+  <div class="card fade-in">
+    <div class="card-title">👥 حسابات النظام</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>الاسم الكامل</th><th>اسم المستخدم</th><th>الصلاحية</th><th>إجراءات</th></tr></thead>
+      <tbody id="usersBody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<div id="accountModal" class="modal"><div class="modal-content" style="width:90%;">
+  <h3 style="margin-bottom:1.25rem;">👤 حساب جديد</h3>
+  <form id="accForm">
+    <div class="form-group"><label>الاسم الكامل</label><input id="fName" required></div>
+    <div class="form-group" style="margin-top:.75rem;"><label>اسم الدخول</label><input id="fUser" required autocomplete="off"></div>
+    <div class="form-group" style="margin-top:.75rem;"><label>كلمة المرور (6 أحرف على الأقل)</label><input type="password" id="fPass" required minlength="6" autocomplete="new-password"></div>
+    <div class="form-group" style="margin-top:.75rem;"><label>الصلاحية</label>
+      <select id="fRole">
+        <option value="inspector">مفتش (يسجّل الزيارات)</option>
+        <option value="manager">مسيّر (اطلاع وتقارير)</option>
+        <option value="admin">مدير النظام</option>
+      </select></div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-ghost" onclick="closeModal()">إلغاء</button>
+      <button type="submit" class="btn btn-accent">حفظ</button>
+    </div>
+  </form>
+</div></div>
+
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script>
+  let me, users = [];
+  const openModal = () => accountModal.classList.add('open');
+  const closeModal = () => { accountModal.classList.remove('open'); accForm.reset(); };
+
+  async function load() {
+    showLoader();
+    try {
+      const d = await listMany(['inspectors', 'institutions', 'visits', 'users']);
+      cInst.textContent = d.institutions.length;
+      cInsp.textContent = d.inspectors.length;
+      cVis.textContent = d.visits.length;
+      const n = s => d.visits.filter(v => v.stage === s).length;
+      cPri.textContent = n('ابتدائي'); cMid.textContent = n('متوسط'); cSec.textContent = n('ثانوي');
+      users = d.users;
+      usersBody.innerHTML = users.map(u => `
+        <tr><td><strong>${esc(u.name)}</strong></td><td><code>${esc(u.username)}</code></td>
+        <td><span class="badge badge-${esc(u.role)}">${esc(ROLE_LABELS[u.role] || u.role)}</span></td>
+        <td class="action-btns">
+          <button class="btn btn-ghost btn-sm" onclick="resetPw('${esc(u.id)}')">🔑 كلمة مرور جديدة</button>
+          <button class="btn btn-danger btn-sm" onclick="delUser('${esc(u.id)}')" ${u.id === me.id ? 'disabled' : ''}>حذف</button>
+        </td></tr>`).join('');
+    } catch (e) { showError(e.message); }
+    hideLoader();
+  }
+
+  accForm.onsubmit = async e => {
+    e.preventDefault();
+    try {
+      showLoader();
+      await api('insert', { sheet: 'users', data: { name: fName.value, username: fUser.value, role: fRole.value, password: fPass.value } });
+      closeModal(); showSuccess('تم إنشاء الحساب'); await load();
+    } catch (ex) { showError(ex.message); }
+    hideLoader();
+  };
+  async function resetPw(id) {
+    const pw = prompt('كلمة المرور الجديدة (6 أحرف على الأقل):');
+    if (!pw) return;
+    try { showLoader(); await api('update', { sheet: 'users', id, data: { password: pw } }); showSuccess('تم تغيير كلمة المرور'); }
+    catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  async function delUser(id) {
+    if (!confirm('حذف هذا الحساب نهائيًا؟')) return;
+    try { showLoader(); await api('delete', { sheet: 'users', id }); await load(); }
+    catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  me = initPage(['admin']);
+  if (me) load();
+</script>
+</body>
+</html>

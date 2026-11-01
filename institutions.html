@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>إدارة المؤسسات</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="loader-overlay" id="loaderOverlay"><div class="spinner"></div></div>
+<div id="nav"></div>
+<div class="container">
+  <div class="page-header"><h2>🏢 <span>إدارة المؤسسات التعليمية</span></h2><span class="badge badge-manager" id="cnt"></span></div>
+
+  <div class="card fade-in">
+    <div class="card-title" id="formTitle">➕ إضافة مؤسسة</div>
+    <div class="hint" id="noMun" style="display:none;">لم تُسجَّل بلديات بعد — <a href="settings.html">أضفها من صفحة الإعدادات</a> لتظهر في القائمة.</div>
+    <form id="form">
+      <div class="form-grid">
+        <div class="form-group"><label>البلدية <span class="req">*</span></label><select id="municipality" required></select></div>
+        <div class="form-group"><label>اسم المؤسسة <span class="req">*</span></label><input id="fName" required /></div>
+        <div class="form-group"><label>المرحلة <span class="req">*</span></label><select id="stage" required></select></div>
+        <div class="form-group"><label>مدير المؤسسة (اختياري)</label><input id="director" /></div>
+        <div class="form-group"><label>المسيّر المالي (اختياري)</label><input id="finManager" /></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" onclick="resetForm()">↺ مسح</button>
+        <button type="submit" class="btn btn-accent" id="saveBtn">💾 حفظ المؤسسة</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card fade-in">
+    <div class="card-title">📋 قائمة المؤسسات</div>
+    <div class="search-grid">
+      <input type="search" id="qName" placeholder="بحث بالاسم..." oninput="render()" />
+      <select id="qMun" onchange="render()"></select>
+      <select id="qStage" onchange="render()"></select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>البلدية</th><th>المؤسسة</th><th>المرحلة</th><th>المدير</th><th>المسيّر المالي</th><th>إجراءات</th></tr></thead>
+      <tbody id="body"></tbody>
+    </table></div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script>
+  let all = [], editId = null;
+  const val = id => document.getElementById(id).value.trim();
+
+  async function load() {
+    showLoader();
+    try {
+      const d = await listMany(['institutions', 'municipalities']);
+      all = d.institutions;
+      const names = d.municipalities.map(m => m.name).sort((a, b) => a.localeCompare(b, 'ar'));
+      noMun.style.display = names.length ? 'none' : 'block';
+      fillSelect(municipality, names, '-- اختر البلدية --');
+      fillSelect(qMun, names, '-- كل البلديات --');
+      render();
+    } catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  function render() {
+    const n = qName.value.toLowerCase(), m = qMun.value, st = qStage.value;
+    const rows = all.filter(i => i.name.toLowerCase().includes(n) && (!m || i.municipality === m) && (!st || i.stage === st));
+    cnt.textContent = rows.length + ' مؤسسة';
+    body.innerHTML = rows.length ? rows.map((i, k) => `
+      <tr><td>${k + 1}</td><td>${esc(i.municipality)}</td><td><strong>${esc(i.name)}</strong></td><td>${esc(i.stage)}</td>
+      <td>${esc(i.director) || '-'}</td><td>${esc(i.finManager) || '-'}</td>
+      <td class="action-btns">
+        <button class="btn btn-primary btn-sm" onclick="edit('${esc(i.id)}')">📝</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${esc(i.id)}')">🗑️</button>
+      </td></tr>`).join('')
+      : '<tr><td colspan="7" class="empty-state"><span class="icon">🏢</span>لا توجد مؤسسات</td></tr>';
+  }
+  function edit(id) {
+    const i = all.find(x => x.id === id); if (!i) return;
+    editId = id; setSelectValue(municipality, i.municipality); fName.value = i.name; stage.value = i.stage;
+    director.value = i.director; finManager.value = i.finManager;
+    formTitle.textContent = '📝 تعديل مؤسسة'; saveBtn.textContent = '💾 حفظ التعديلات';
+    scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function resetForm() {
+    editId = null; form.reset(); formTitle.textContent = '➕ إضافة مؤسسة'; saveBtn.textContent = '💾 حفظ المؤسسة';
+  }
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const data = { municipality: val('municipality'), name: val("fName"), stage: val('stage'), director: val('director'), finManager: val('finManager') };
+    try {
+      showLoader();
+      await (editId ? api('update', { sheet: 'institutions', id: editId, data }) : api('insert', { sheet: 'institutions', data }));
+      showSuccess(editId ? 'تم التعديل' : 'تمت الإضافة'); resetForm(); await load();
+    } catch (ex) { showError(ex.message); }
+    hideLoader();
+  };
+  async function del(id) {
+    if (!confirm('حذف هذه المؤسسة؟ (الزيارات المسجلة لا تُحذف)')) return;
+    try { showLoader(); await api('delete', { sheet: 'institutions', id }); await load(); }
+    catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  fillSelect(stage, LEVELS, '-- اختر المرحلة --');
+  fillSelect(qStage, LEVELS, '-- كل المراحل --');
+  if (initPage(['admin'])) load();
+</script>
+</body>
+</html>

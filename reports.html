@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>حوصلة التقارير التفتيشية</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+        body { font-family: 'Sakkal Majalla', Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }
+        .controls-card { background: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end; }
+        label { font-weight: bold; font-size: 0.95rem; margin-bottom: 5px; display: block; color: #334155; }
+        
+        input, select { 
+            width: 100%; 
+            padding: 8px 12px; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 6px; 
+            font-size: 1rem; 
+            color: #000000 !important; 
+            background-color: #ffffff !important; 
+            font-weight: 500;
+        }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+        .btn-action { padding: 10px 18px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; display: flex; align-items: center; gap: 6px; }
+        .btn-print { background-color: #0284c7; }
+        .btn-excel { background-color: #16a34a; }
+        .btn-pdf { background-color: #dc2626; }
+
+        #reportOutput { background: #ffffff; padding: 20px; min-height: 800px; }
+        
+        .report-page { 
+            background: white; 
+            padding: 25px; 
+            margin-bottom: 30px; 
+            border: 1px solid #cbd5e1; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            page-break-before: always; 
+            position: relative;
+        }
+        .report-page:first-child { page-break-before: auto; }
+
+        .official-header { text-align: center; font-weight: bold; line-height: 1.5; margin-bottom: 20px; color: #000; }
+        .official-header .republic { font-size: 1.2rem; }
+        .official-header .ministry { font-size: 1.1rem; }
+        .official-header .directorate { text-align: right; font-size: 1.1rem; margin-top: 10px; }
+        .report-title { text-align: center; font-size: 1.5rem; font-weight: bold; margin: 15px 0; text-decoration: underline; color: #000; }
+        
+        .inspector-info { font-size: 1.15rem; font-weight: bold; margin-bottom: 15px; background: #f1f5f9; padding: 8px 12px; border-right: 5px solid #0284c7; color: #000; }
+
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; color: #000000 !important; }
+        .report-table th, .report-table td { border: 1px solid #000000 !important; padding: 6px 8px; text-align: center; color: #000000 !important; white-space: nowrap; }
+        .report-table th { background-color: #e2e8f0; font-weight: bold; color: #000000 !important; }
+        .report-table .total-row { font-weight: bold; background-color: #f1f5f9; color: #000000 !important; }
+
+        .report-footer { 
+            margin-top: 25px; 
+            float: left; 
+            text-align: center; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            color: #000000; 
+            line-height: 1.8;
+            padding-left: 20px;
+        }
+
+        .clear-fix { clear: both; }
+
+        @media print {
+            .controls-card, .btn-group, .navbar { display: none !important; }
+            body { padding: 0; background: white; }
+            .report-page { border: none; box-shadow: none; padding: 0; margin: 0; }
+        }
+    
+.navbar label { color: inherit; }
+</style>
+</head>
+<body>
+<div class="loader-overlay" id="loaderOverlay"><div class="spinner"></div></div>
+<div id="nav"></div>
+
+<div class="controls-card">
+  <h2>📊 لوحة إنشاء التقارير التفتيشية</h2>
+  <div class="controls-grid">
+    <div><label>سنة بداية الموسم الدراسي</label><input type="number" id="reportStartYear"></div>
+    <div><label>مديرية التربية لولاية</label><input type="text" id="reportState" placeholder="اسم الولاية"></div>
+    <div><label>نوع التقرير</label>
+      <select id="reportType" onchange="toggleReportOptions()">
+        <option value="season">1- حصيلة شاملة للموسم الدراسي</option>
+        <option value="individual">2- تقرير فردي لمفتش محدد</option>
+        <option value="subjects">3- تقرير حسب مواد المفتشين</option>
+      </select></div>
+    <div id="stageBox" style="display:none;"><label>المرحلة التعليمية</label>
+      <select id="stageFilter" onchange="loadInspectorsByStage()">
+        <option value="ثانوي">ثانوي</option><option value="متوسط">متوسط</option><option value="ابتدائي">ابتدائي</option>
+      </select></div>
+    <div id="inspectorBox" style="display:none;"><label>اسم المفتش</label>
+      <select id="inspectorFilter"><option value="">-- اختر المفتش --</option></select></div>
+  </div>
+  <div class="btn-group">
+    <button class="btn-action btn-print" onclick="generateReport()">🔍 عرض التقرير</button>
+    <button class="btn-action btn-print" style="background:#475569;" onclick="window.print()">🖨️ طباعة التقرير</button>
+    <button class="btn-action btn-excel" onclick="exportToExcel()">📊 تصدير Excel</button>
+    <button class="btn-action btn-pdf" onclick="exportToPDF()">📄 تصدير PDF</button>
+  </div>
+</div>
+
+<div id="reportOutput">
+  <div style="text-align:center; padding:50px; color:#64748b;">💡 حدد خيارات التقرير أعلاه ثم اضغط على "عرض التقرير".</div>
+</div>
+
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script>
+let allVisitsData = [], inspectorsData = [];
+
+function headerHTML(state) {
+  return `<div class="official-header">
+    <div class="republic">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+    <div class="ministry">وزارة التربية الوطنية</div>
+    <div class="directorate">مديرية التربية لولاية : ${esc(state)}</div></div>`;
+}
+function footerHTML(state) {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `<div class="report-footer"><div>${esc(state)} في : ${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}</div>
+    <div style="margin-top:5px;">إمضاء مدير التربية</div></div><div class="clear-fix"></div>`;
+}
+function newPage(container, inner, state) {
+  const page = document.createElement('div');
+  page.className = 'report-page';
+  page.innerHTML = headerHTML(state) + inner + footerHTML(state);
+  container.appendChild(page);
+}
+
+async function init() {
+  showLoader();
+  try {
+    const d = await listMany(['visits', 'inspectors', 'settings']);
+    allVisitsData = d.visits; inspectorsData = d.inspectors;
+    reportState.value = d.settings.directorate || '';
+  } catch (e) { showError(e.message); }
+  hideLoader();
+}
+
+function toggleReportOptions() {
+  const t = reportType.value;
+  stageBox.style.display = (t === 'individual' || t === 'subjects') ? 'block' : 'none';
+  inspectorBox.style.display = (t === 'individual') ? 'block' : 'none';
+  if (t === 'individual') loadInspectorsByStage();
+}
+function loadInspectorsByStage() {
+  fillSelect(inspectorFilter, inspectorsData.filter(i => i.stage === stageFilter.value).map(i => i.name), '-- اختر المفتش --');
+}
+
+// الموسم: من 01 سبتمبر إلى 30 جوان من السنة الموالية
+function inSeason(v, startYear) {
+  const d = v.visitDate;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d >= `${startYear}-09-01` && d <= `${startYear + 1}-06-30`;
+  return v.season === seasonLabel(startYear);
+}
+function specialtyOf(v) {
+  if (v.specialty) return v.specialty;
+  const f = inspectorsData.find(i => i.name === v.inspector);
+  return (f && f.specialty) || 'غير محدد';
+}
+
+function generateReport() {
+  const startYear = parseInt(reportStartYear.value) || currentSeasonStart();
+  const seasonText = seasonLabel(startYear), state = reportState.value.trim();
+  const container = reportOutput; container.innerHTML = '';
+  if (!allVisitsData.length) { alert('⚠️ لا توجد زيارات محملة بالمنظومة!'); return; }
+  const visits = allVisitsData.filter(v => inSeason(v, startYear));
+  const t = reportType.value;
+  if (t === 'season') renderSeason(visits, seasonText, state, container);
+  else if (t === 'individual') {
+    if (!inspectorFilter.value) { alert('الرجاء اختيار المفتش'); return; }
+    renderIndividual(visits, inspectorFilter.value, seasonText, state, container);
+  } else renderSubjects(visits, stageFilter.value || 'ثانوي', seasonText, state, container);
+}
+
+function instTable(map) {
+  let rows = '', i = 1, total = 0;
+  for (const [inst, c] of Object.entries(map)) { total += c; rows += `<tr><td>${i++}</td><td style="text-align:right;">${esc(inst)}</td><td>${c}</td></tr>`; }
+  return { rows, total };
+}
+
+function renderSeason(visits, seasonText, state, container) {
+  if (!visits.length) {
+    container.innerHTML = `<div style="text-align:center;font-weight:bold;padding:40px;color:#dc2626;">⚠️ لا توجد زيارات للموسم الدراسي (${esc(seasonText)}).</div>`;
+    return;
+  }
+  const stats = {}; LEVELS.forEach(s => stats[s] = { visits: 0, insp: new Set(), inst: new Set() });
+  const byInsp = {};
+  visits.forEach(v => {
+    const s = stats[v.stage];
+    if (s) { s.visits++; if (v.inspector) s.insp.add(v.inspector); if (v.institution) s.inst.add(v.institution); }
+    if (v.inspector && v.institution) {
+      byInsp[v.inspector] = byInsp[v.inspector] || {};
+      byInsp[v.inspector][v.institution] = (byInsp[v.inspector][v.institution] || 0) + 1;
+    }
+  });
+  const allI = new Set(), allN = new Set(); let totalV = 0, rows = '';
+  LEVELS.forEach((st, idx) => {
+    const s = stats[st]; totalV += s.visits; s.insp.forEach(x => allI.add(x)); s.inst.forEach(x => allN.add(x));
+    rows += `<tr><td>${idx + 1}</td><td style="font-weight:bold;">التعليم ${st}</td><td>${s.insp.size}</td><td>${s.inst.size}</td><td style="font-weight:bold;">${s.visits}</td></tr>`;
+  });
+  newPage(container, `
+    <div class="report-title">الإحصائيات العددية الإجمالية للزيارات التفتيشية (${esc(seasonText)})</div>
+    <table class="report-table"><thead><tr><th style="width:8%;">#</th><th>المرحلة التعليمية</th><th>عدد المفتشين</th>
+      <th>عدد المؤسسات المزارة (بدون تكرار)</th><th>عدد الزيارات الإجمالي</th></tr></thead>
+      <tbody>${rows}<tr class="total-row"><td colspan="2">المجموع الكلي الإجمالي</td><td>${allI.size}</td><td>${allN.size}</td><td>${totalV}</td></tr></tbody></table>`, state);
+  Object.keys(byInsp).forEach(name => {
+    const { rows, total } = instTable(byInsp[name]);
+    newPage(container, `
+      <div class="report-title">حصيلة الزيارات التفتيشية للموسم الدراسي ${esc(seasonText)}</div>
+      <div class="inspector-info">اسم السيد المفتش: ${esc(name)}</div>
+      <table class="report-table"><thead><tr><th style="width:10%;">#</th><th>اسم المؤسسة المزارة</th><th style="width:25%;">عدد الزيارات</th></tr></thead>
+      <tbody>${rows}<tr class="total-row"><td colspan="2" style="text-align:left;padding-left:20px;">مجموع الزيارات:</td><td>${total}</td></tr></tbody></table>`, state);
+  });
+}
+
+function renderIndividual(visits, name, seasonText, state, container) {
+  const map = {};
+  visits.filter(v => v.inspector === name && v.institution).forEach(v => map[v.institution] = (map[v.institution] || 0) + 1);
+  const { rows, total } = instTable(map);
+  newPage(container, `
+    <div class="report-title">تقرير حصيلة الزيارات التفتيشية الفردية (${esc(seasonText)})</div>
+    <div class="inspector-info">المفتش: ${esc(name)}</div>
+    <table class="report-table"><thead><tr><th>#</th><th>المؤسسة المزارة</th><th>عدد الزيارات</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="3">لا توجد زيارات مسجلة لهذا المفتش</td></tr>'}
+    <tr class="total-row"><td colspan="2">المجموع الكلي:</td><td>${total}</td></tr></tbody></table>`, state);
+}
+
+function renderSubjects(visits, stage, seasonText, state, container) {
+  const sv = visits.filter(v => v.stage === stage);
+  if (!sv.length) {
+    container.innerHTML = `<div class="report-page" style="text-align:center;padding:30px;font-weight:bold;color:#dc2626;">⚠️ لا توجد زيارات لمرحلة (${esc(stage)}) في هذا الموسم.</div>`;
+    return;
+  }
+  const subj = new Set(), insts = new Set(), m = {};
+  sv.forEach(v => {
+    const s = specialtyOf(v), i = v.institution || 'غير محددة';
+    subj.add(s); insts.add(i); m[i] = m[i] || {}; m[i][s] = (m[i][s] || 0) + 1;
+  });
+  const sl = [...subj].sort((a, b) => a.localeCompare(b, 'ar')), il = [...insts].sort((a, b) => a.localeCompare(b, 'ar'));
+  const tot = {}; sl.forEach(s => tot[s] = 0); let grand = 0, body = '';
+  il.forEach(i => {
+    let it = 0; body += `<tr><td style="text-align:right;font-weight:bold;">${esc(i)}</td>`;
+    sl.forEach(s => { const c = m[i][s] || 0; it += c; tot[s] += c; body += `<td>${c || '-'}</td>`; });
+    grand += it; body += `<td style="font-weight:bold;background:#f8fafc;">${it}</td></tr>`;
+  });
+  newPage(container, `
+    <div class="report-title">حوصلة الزيارات التفتيشية حسب مواد المفتشين (مرحلة ${esc(stage)}) - ${esc(seasonText)}</div>
+    <div style="width:100%;overflow-x:auto;"><table class="report-table">
+      <thead><tr><th>المؤسسة / تخصص المفتش (المادة)</th>${sl.map(s => `<th>${esc(s)}</th>`).join('')}<th>مجموع المؤسسة</th></tr></thead>
+      <tbody>${body}</tbody>
+      <tfoot><tr class="total-row"><td>مجموع زيارات المادة</td>${sl.map(s => `<td>${tot[s]}</td>`).join('')}<td>${grand}</td></tr></tfoot>
+    </table></div>`, state);
+}
+
+function exportToExcel() {
+  const tables = document.querySelectorAll('.report-table');
+  if (!tables.length) { alert('الرجاء عرض التقرير أولاً'); return; }
+  const wb = XLSX.utils.book_new();
+  tables.forEach((t, i) => XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(t), `تقرير_${i + 1}`));
+  XLSX.writeFile(wb, `تقرير_الزيارات_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function exportToPDF() {
+  if (!reportOutput.querySelector('.report-page')) { alert('الرجاء عرض التقرير أولاً'); return; }
+  const t = reportType.value, dateStr = new Date().toISOString().split('T')[0];
+  let fileName = `تقرير_الزيارات_${dateStr}.pdf`, format = 'a4', orient = 'portrait';
+  if (t === 'individual') fileName = `تقرير_المفتش_${(inspectorFilter.value || 'فردي').replace(/[\/\s]/g, '_')}_${dateStr}.pdf`;
+  else if (t === 'subjects') { orient = 'landscape'; format = 'a3'; fileName = `تقرير_المواد_${dateStr}.pdf`; }
+  html2pdf().set({ margin: [8, 8, 8, 8], filename: fileName, image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 }, jsPDF: { unit: 'mm', format, orientation: orient } })
+    .from(reportOutput).save();
+}
+
+if (initPage(['admin', 'inspector', 'manager'])) { reportStartYear.value = currentSeasonStart(); init(); }
+</script>
+</body>
+</html>

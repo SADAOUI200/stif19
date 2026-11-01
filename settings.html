@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>الإعدادات – بلديات الولاية</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="loader-overlay" id="loaderOverlay"><div class="spinner"></div></div>
+<div id="nav"></div>
+<div class="container">
+  <div class="page-header"><h2>🛠️ <span>إعدادات المديرية</span></h2></div>
+
+  <div class="card fade-in">
+    <div class="card-title">🏛️ اسم الولاية</div>
+    <div class="form-grid">
+      <div class="form-group"><label>مديرية التربية لولاية</label>
+        <input type="text" id="directorate" placeholder="مثال: توقرت" /></div>
+    </div>
+    <div class="form-actions"><button class="btn btn-accent" onclick="saveDirectorate()">💾 حفظ الاسم</button></div>
+  </div>
+
+  <div class="card fade-in">
+    <div class="card-title">📍 بلديات الولاية <span class="badge badge-inspector" id="munCount">0</span></div>
+    <div class="hint">تُحفظ البلديات في الشيت وتظهر تلقائيًا كقائمة منسدلة في صفحتي المؤسسات والزيارات.</div>
+
+    <div class="form-grid">
+      <div class="form-group"><label>إضافة بلدية واحدة</label>
+        <div style="display:flex;gap:.5rem;">
+          <input type="text" id="oneMun" placeholder="اسم البلدية" onkeydown="if(event.key==='Enter'){addOne();}" />
+          <button class="btn btn-primary" onclick="addOne()">➕</button>
+        </div></div>
+      <div class="form-group full-width"><label>أو الصق عدة بلديات (كل بلدية في سطر)</label>
+        <textarea id="bulkMun" rows="5" placeholder="بلدية 1&#10;بلدية 2&#10;بلدية 3"></textarea></div>
+    </div>
+    <div class="form-actions"><button class="btn btn-accent" onclick="addBulk()">📥 إضافة القائمة</button></div>
+
+    <div class="divider"></div>
+    <div class="chips" id="munList"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script>
+  let munis = [];
+  async function load() {
+    showLoader();
+    try {
+      const d = await listMany(['municipalities', 'settings']);
+      munis = d.municipalities;
+      directorate.value = d.settings.directorate || '';
+      render();
+    } catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  function render() {
+    munCount.textContent = munis.length;
+    munList.innerHTML = munis.length
+      ? munis.map(m => `<span class="chip">${esc(m.name)}<button title="حذف" onclick="del('${esc(m.id)}')">✕</button></span>`).join('')
+      : '<div class="empty-state"><span class="icon">📍</span>لم تُضف أي بلدية بعد</div>';
+  }
+  async function saveDirectorate() {
+    try { showLoader(); await api('setSettings', { data: { directorate: directorate.value } }); showSuccess('تم حفظ اسم الولاية'); }
+    catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  async function addOne() {
+    const name = oneMun.value.trim(); if (!name) return;
+    try { showLoader(); await api('insert', { sheet: 'municipalities', data: { name } }); oneMun.value = ''; await load(); showSuccess('تمت الإضافة'); }
+    catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  async function addBulk() {
+    const rows = bulkMun.value.split('\n').map(x => x.trim()).filter(Boolean);
+    if (!rows.length) return;
+    try {
+      showLoader();
+      const r = await api('bulkInsert', { sheet: 'municipalities', rows });
+      bulkMun.value = ''; await load(); showSuccess(`أُضيفت ${r.added} بلدية`);
+    } catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  async function del(id) {
+    if (!confirm('حذف هذه البلدية من القائمة؟ (المؤسسات المسجلة لا تتأثر)')) return;
+    try { showLoader(); await api('delete', { sheet: 'municipalities', id }); await load(); }
+    catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  if (initPage(['admin'])) load();
+</script>
+</body>
+</html>

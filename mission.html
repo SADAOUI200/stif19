@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>الأمر بمهمة</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  @media print { body { background: #fff !important; color: #000 !important; }
+    .card { background: #fff !important; box-shadow: none !important; border: none !important; }
+    label { color: #333 !important; } input, select, textarea { background: #fff !important; color: #000 !important; border: 1px solid #999 !important; } }
+</style>
+</head>
+<body>
+<div class="loader-overlay" id="loaderOverlay"><div class="spinner"></div></div>
+<div id="nav"></div>
+<div class="container">
+  <div class="card fade-in">
+    <div class="card-title">📜 تحرير أمر بمهمة</div>
+    <form id="form">
+      <div class="form-grid">
+        <div class="form-group"><label>الرقم التسلسلي</label><input id="number" required /></div>
+        <div class="form-group"><label>الرتبة (المرحلة التعليمية)</label>
+          <select id="stage" required>
+            <option value="">-- اختر المرحلة --</option>
+            <option value="ابتدائي">مفتش التعليم الابتدائي</option>
+            <option value="متوسط">مفتش التعليم المتوسط</option>
+            <option value="ثانوي">مفتش التعليم الثانوي</option>
+          </select></div>
+        <div class="form-group"><label>الاسم واللقب</label><select id="inspector" required disabled></select></div>
+        <div class="form-group"><label>الإقامة الإدارية</label><input id="residence" /></div>
+        <div class="form-group"><label>مكان الملتقى</label><input id="place" /></div>
+        <div class="form-group"><label>تاريخ الذهاب</label><input type="date" id="departDate" required /></div>
+        <div class="form-group"><label>تاريخ العودة</label><input type="date" id="returnDate" required /></div>
+        <div class="form-group full-width"><label>موضوع الملتقى</label><input id="subject" /></div>
+        <div class="form-group full-width"><label>الملاحظة</label><textarea id="note" rows="3"></textarea></div>
+      </div>
+      <div class="form-actions no-print">
+        <button type="button" class="btn btn-ghost" onclick="window.print()">🖨️ طباعة</button>
+        <button type="submit" class="btn btn-accent" id="saveBtn">💾 حفظ الأمر</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card fade-in no-print">
+    <div class="card-title">🗂️ الأوامر المحفوظة</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>الرقم</th><th>المفتش</th><th>مكان الملتقى</th><th>الذهاب</th><th>العودة</th><th>إجراءات</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script>
+  let inspectors = [], missions = [];
+  const g = id => document.getElementById(id);
+  const FIELDS = ['number', 'stage', 'inspector', 'residence', 'place', 'departDate', 'returnDate', 'subject', 'note'];
+
+  function fillInspectors(selected) {
+    const st = stage.value;
+    fillSelect(inspector, inspectors.filter(i => i.stage === st).map(i => i.name),
+      st ? '-- اختر المفتش --' : '-- اختر المرحلة أولاً --');
+    inspector.disabled = !st;
+    if (selected) setSelectValue(inspector, selected);
+  }
+  stage.onchange = () => fillInspectors();
+
+  async function load() {
+    showLoader();
+    try {
+      const d = await listMany(['inspectors', 'missions']);
+      inspectors = d.inspectors; missions = d.missions.reverse();
+      tbody.innerHTML = missions.length ? missions.map(m => `
+        <tr><td>${esc(m.number)}</td><td>${esc(m.inspector)}</td><td>${esc(m.place)}</td><td>${esc(m.departDate)}</td><td>${esc(m.returnDate)}</td>
+        <td class="action-btns">
+          <button class="btn btn-primary btn-sm" onclick="printMission('${esc(m.id)}')">🖨️ طباعة</button>
+          <button class="btn btn-danger btn-sm" onclick="del('${esc(m.id)}')">🗑️</button>
+        </td></tr>`).join('')
+        : '<tr><td colspan="6" class="empty-state">لا توجد أوامر محفوظة</td></tr>';
+    } catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  function printMission(id) {
+    const m = missions.find(x => x.id === id); if (!m) return;
+    FIELDS.forEach(f => { if (f !== 'inspector') g(f).value = m[f] || ''; });
+    fillInspectors(m.inspector);
+    scrollTo({ top: 0 });
+    setTimeout(() => window.print(), 300);
+  }
+  async function del(id) {
+    if (!confirm('حذف هذا الأمر؟')) return;
+    try { showLoader(); await api('delete', { sheet: 'missions', id }); await load(); }
+    catch (e) { showError(e.message); }
+    hideLoader();
+  }
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const data = {}; FIELDS.forEach(f => data[f] = g(f).value.trim());
+    saveBtn.disabled = true;
+    try {
+      showLoader(); await api('insert', { sheet: 'missions', data });
+      showSuccess('تم حفظ الأمر بمهمة'); form.reset(); fillInspectors(); await load();
+    } catch (ex) { showError(ex.message); }
+    saveBtn.disabled = false; hideLoader();
+  };
+  if (initPage(['admin'])) { fillInspectors(); load(); }
+</script>
+</body>
+</html>

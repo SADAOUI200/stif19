@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>تسجيل الدخول – نظام إدارة الزيارات التفتيشية</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="login-wrapper">
+  <div class="login-box fade-in">
+    <div class="login-logo">
+      <div class="icon-wrap">🏫</div>
+      <h1>نظام إدارة الزيارات التفتيشية</h1>
+      <p id="dirName">يرجى تسجيل الدخول للمتابعة</p>
+    </div>
+    <form id="loginForm" novalidate>
+      <div class="form-group"><label for="username">اسم المستخدم</label>
+        <input type="text" id="username" autocomplete="username" required /></div>
+      <div class="form-group"><label for="password">كلمة المرور</label>
+        <input type="password" id="password" autocomplete="current-password" required /></div>
+      <div class="login-error" id="loginError"></div>
+      <button type="submit" class="btn btn-primary login-btn" id="loginBtn">🔐 دخول</button>
+    </form>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script>
+  const s = getSession();
+  if (s) location.href = homePage(s.user.role);
+
+  api('publicInfo').then(d => {
+    if (d.directorate) document.getElementById('dirName').textContent = 'مديرية التربية لولاية ' + d.directorate;
+  }).catch(() => {});
+
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const err = document.getElementById('loginError'), btn = document.getElementById('loginBtn');
+    err.style.display = 'none'; btn.disabled = true; btn.textContent = 'جارٍ التحقق...';
+    try {
+      const d = await api('login', { username: username.value, password: password.value });
+      setSession(d);
+      location.href = homePage(d.user.role);
+    } catch (ex) {
+      err.textContent = ex.message; err.style.display = 'block';
+      btn.disabled = false; btn.textContent = '🔐 دخول';
+    }
+  });
+</script>
+</body>
+</html>
