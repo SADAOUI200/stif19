@@ -3,6 +3,6 @@
  * الصق رابط تطبيق الويب (Web App URL) الناتج عن نشر Code.gs
  */
 const CONFIG = {
-  API_URL: "PASTE_YOUR_WEB_APP_URL_HERE",
+  API_URL: "https://script.google.com/macros/s/AKfycbzVyenVFz54oSxDEXamOnm-7AbjLUi6uCsbuFWqeCoxHcnZ0IRNxgdbfBOvxnxyiBsu/exec",
   APP_NAME: "نظام إدارة الزيارات التفتيشية"
 };
