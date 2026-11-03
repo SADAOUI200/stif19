@@ -6,81 +6,50 @@
 <title>حوصلة التقارير التفتيشية</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
-        body { font-family: 'Sakkal Majalla', Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }
-        .controls-card { background: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid #e2e8f0; }
-        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end; }
-        label { font-weight: bold; font-size: 0.95rem; margin-bottom: 5px; display: block; color: #334155; }
-        
-        input, select { 
-            width: 100%; 
-            padding: 8px 12px; 
-            border: 1px solid #cbd5e1; 
-            border-radius: 6px; 
-            font-size: 1rem; 
-            color: #000000 !important; 
-            background-color: #ffffff !important; 
-            font-weight: 500;
-        }
+  html, body { background: #f8fafc !important; }
+  body { font-family: 'Tajawal', 'Sakkal Majalla', Arial, sans-serif; color: #0f172a; margin: 0; padding: 20px; }
+  body::before, body::after { display: none !important; }
+  #nav { margin: -20px -20px 20px; }
+  .controls-card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,.1); margin-bottom: 20px; border: 1px solid #e2e8f0; color: #0f172a; }
+  .controls-card h2 { margin: 0 0 14px; }
+  .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end; }
+  .controls-card label { font-weight: bold; font-size: .95rem; margin-bottom: 5px; display: block; color: #334155; letter-spacing: 0; }
+  .controls-card input, .controls-card select { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; color: #000 !important; background: #fff !important; font-weight: 500; }
+  .btn-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+  .btn-action { padding: 10px 18px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: #fff; display: flex; align-items: center; gap: 6px; font-family: inherit; }
+  .btn-print { background: #0284c7; } .btn-excel { background: #16a34a; }
 
-        .btn-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
-        .btn-action { padding: 10px 18px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; display: flex; align-items: center; gap: 6px; }
-        .btn-print { background-color: #0284c7; }
-        .btn-excel { background-color: #16a34a; }
-        .btn-pdf { background-color: #dc2626; }
+  #reportOutput { background: #fff; padding: 20px; min-height: 400px; }
+  .report-page { background: #fff; color: #000; padding: 25px; margin-bottom: 30px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,.05); page-break-before: always; letter-spacing: 0; }
+  .report-page:first-child { page-break-before: auto; }
+  .official-header { text-align: center; font-weight: bold; line-height: 1.6; margin-bottom: 20px; color: #000; }
+  .official-header .republic { font-size: 1.2rem; } .official-header .ministry { font-size: 1.1rem; }
+  .official-header .directorate { text-align: right; font-size: 1.1rem; margin-top: 10px; }
+  .report-title { display: table; margin: 15px auto; text-align: center; font-size: 1.45rem; font-weight: bold; border-bottom: 2px solid #000; padding-bottom: 4px; color: #000; }
+  .inspector-info { font-size: 1.1rem; font-weight: bold; margin: 12px 0; background: #f1f5f9; padding: 8px 12px; border-right: 5px solid #0284c7; color: #000; }
+  .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .95rem; color: #000 !important; }
+  .report-table th, .report-table td { border: 1px solid #000 !important; padding: 6px 8px; text-align: center; color: #000 !important; }
+  .report-table th { background: #e2e8f0; font-weight: bold; }
+  .report-table .total-row { font-weight: bold; background: #f1f5f9; }
+  .subjects-table th, .subjects-table td { padding: 4px 3px; }
+  .subjects-table td:first-child { text-align: right; white-space: nowrap; font-weight: bold; }
+  .table-scroll { overflow-x: auto; }
+  .chart-box { margin: 18px 0; page-break-inside: avoid; }
+  .chart-title { font-weight: bold; font-size: 1.05rem; margin-bottom: 6px; background: #f1f5f9; padding: 6px 12px; border-right: 5px solid #0284c7; color: #000; }
+  .report-footer { margin-top: 25px; float: left; text-align: center; font-size: 1.1rem; font-weight: bold; color: #000; line-height: 1.8; padding-left: 20px; }
+  .clear-fix { clear: both; }
 
-        #reportOutput { background: #ffffff; padding: 20px; min-height: 800px; }
-        
-        .report-page { 
-            background: white; 
-            padding: 25px; 
-            margin-bottom: 30px; 
-            border: 1px solid #cbd5e1; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            page-break-before: always; 
-            position: relative;
-        }
-        .report-page:first-child { page-break-before: auto; }
-
-        .official-header { text-align: center; font-weight: bold; line-height: 1.5; margin-bottom: 20px; color: #000; }
-        .official-header .republic { font-size: 1.2rem; }
-        .official-header .ministry { font-size: 1.1rem; }
-        .official-header .directorate { text-align: right; font-size: 1.1rem; margin-top: 10px; }
-        .report-title { text-align: center; font-size: 1.5rem; font-weight: bold; margin: 15px 0; text-decoration: underline; color: #000; }
-        
-        .inspector-info { font-size: 1.15rem; font-weight: bold; margin-bottom: 15px; background: #f1f5f9; padding: 8px 12px; border-right: 5px solid #0284c7; color: #000; }
-
-        .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; color: #000000 !important; }
-        .report-table th, .report-table td { border: 1px solid #000000 !important; padding: 6px 8px; text-align: center; color: #000000 !important; white-space: nowrap; }
-        .report-table th { background-color: #e2e8f0; font-weight: bold; color: #000000 !important; }
-        .report-table .total-row { font-weight: bold; background-color: #f1f5f9; color: #000000 !important; }
-
-        .report-footer { 
-            margin-top: 25px; 
-            float: left; 
-            text-align: center; 
-            font-size: 1.1rem; 
-            font-weight: bold; 
-            color: #000000; 
-            line-height: 1.8;
-            padding-left: 20px;
-        }
-
-        .clear-fix { clear: both; }
-
-        @media print {
-            .controls-card, .btn-group, .navbar { display: none !important; }
-            body { padding: 0; background: white; }
-            .report-page { border: none; box-shadow: none; padding: 0; margin: 0; }
-        }
-    
-.navbar label { color: inherit; }
-        .report-table tr { page-break-inside: avoid; }
-        .subjects-table th, .subjects-table td { white-space: normal; padding: 4px 3px; word-break: keep-all; }
-        .subjects-table th:first-child, .subjects-table td:first-child { white-space: nowrap; }
-        .exporting #reportOutput, #reportOutput.exporting { padding: 0 !important; min-height: 0; }
-        .exporting .report-page { border: none; box-shadow: none; margin: 0; }
+  @media print {
+    html, body { background: #fff !important; color: #000 !important; padding: 0; }
+    .controls-card, .navbar, #nav, .loader-overlay, .toast-container { display: none !important; }
+    #reportOutput { padding: 0; min-height: 0; }
+    .report-page { border: none; box-shadow: none; padding: 0; margin: 0; }
+    .table-scroll { overflow: visible !important; }
+    .report-table th, .report-table .total-row, .inspector-info, .chart-title { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .report-table thead { display: table-header-group; }
+    .report-table tr { page-break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
@@ -94,7 +63,7 @@
     <div><label>مديرية التربية لولاية</label><input type="text" id="reportState" placeholder="اسم الولاية"></div>
     <div><label>نوع التقرير</label>
       <select id="reportType" onchange="toggleReportOptions()">
-        <option value="season">1- حصيلة شاملة للموسم الدراسي</option>
+        <option value="season">1- التقرير الشامل للموسم الدراسي</option>
         <option value="individual">2- تقرير فردي لمفتش محدد</option>
         <option value="subjects">3- تقرير حسب مواد المفتشين</option>
       </select></div>
@@ -104,12 +73,13 @@
       </select></div>
     <div id="inspectorBox" style="display:none;"><label>اسم المفتش</label>
       <select id="inspectorFilter"><option value="">-- اختر المفتش --</option></select></div>
+    <div id="zeroBox" style="display:none;"><label>
+      <input type="checkbox" id="showZero" style="width:auto;margin-left:6px;">إظهار المؤسسات غير المزارة (0)</label></div>
   </div>
   <div class="btn-group">
     <button class="btn-action btn-print" onclick="generateReport()">🔍 عرض التقرير</button>
-    <button class="btn-action btn-print" style="background:#475569;" onclick="window.print()">🖨️ طباعة التقرير</button>
+    <button class="btn-action btn-print" style="background:#475569;" onclick="printReport()">🖨️ طباعة / حفظ PDF</button>
     <button class="btn-action btn-excel" onclick="exportToExcel()">📊 تصدير Excel</button>
-    <button class="btn-action btn-pdf" onclick="exportToPDF()">📄 تصدير PDF</button>
     <span id="paperNote" style="font-size:.9rem;color:#475569;align-self:center;font-weight:bold;"></span>
   </div>
 </div>
@@ -122,24 +92,37 @@
 <script src="core.js"></script>
 <script>
 let allVisitsData = [], inspectorsData = [], institutionsData = [];
+const STAGE_ORDER = ['ابتدائي', 'متوسط', 'ثانوي'];
+const arCmp = (a, b) => a.localeCompare(b, 'ar');
+const visitKey = v => (v.municipality || '') + '|' + v.institution;
+const cleanTxt = s => String(s || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/\s+/g, ' ').trim();
 
-function headerHTML(state) {
-  return `<div class="official-header">
-    <div class="republic">الجمهورية الجزائرية الديمقراطية الشعبية</div>
-    <div class="ministry">وزارة التربية الوطنية</div>
-    <div class="directorate">مديرية التربية لولاية : ${esc(state)}</div></div>`;
+// ── الورق ────────────────────────────────────────────────
+let PAPER = { format: 'a4', orient: 'portrait' };
+function setPaper(format, orient) {
+  PAPER = { format, orient };
+  let st = document.getElementById('pageStyle');
+  if (!st) { st = document.createElement('style'); st.id = 'pageStyle'; document.head.appendChild(st); }
+  st.textContent = `@page { size: ${format.toUpperCase()} ${orient}; margin: 8mm; }`;
+  document.getElementById('paperNote').textContent = `📐 الورق: ${format.toUpperCase()} ${orient === 'landscape' ? 'أفقي' : 'عمودي'}`;
 }
-function footerHTML(state) {
-  const d = new Date(), p = n => String(n).padStart(2, '0');
-  return `<div class="report-footer"><div>${esc(state)} في : ${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}</div>
-    <div style="margin-top:5px;">إمضاء مدير التربية</div></div><div class="clear-fix"></div>`;
-}
+
+// ── هيكل الصفحة ──────────────────────────────────────────
 function newPage(container, inner, state) {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
   const page = document.createElement('div');
   page.className = 'report-page';
-  page.innerHTML = headerHTML(state) + inner + footerHTML(state);
+  page.innerHTML = `<div class="official-header">
+      <div class="republic">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+      <div class="ministry">وزارة التربية الوطنية</div>
+      <div class="directorate">مديرية التربية : لولاية ${esc(state)}</div></div>
+    ${inner}
+    <div class="report-footer"><div>${esc(state)} في : ${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())}</div>
+      <div style="margin-top:5px;">إمضاء مدير التربية</div></div><div class="clear-fix"></div>`;
   container.appendChild(page);
 }
+const title = t => `<div class="report-title">${t}</div>`;
+const emptyMsg = t => `<div class="report-page" style="text-align:center;padding:40px;font-weight:bold;color:#dc2626;">⚠️ ${t}</div>`;
 
 async function init() {
   showLoader();
@@ -155,10 +138,12 @@ function toggleReportOptions() {
   const t = reportType.value;
   stageBox.style.display = (t === 'individual' || t === 'subjects') ? 'block' : 'none';
   inspectorBox.style.display = (t === 'individual') ? 'block' : 'none';
+  zeroBox.style.display = (t === 'subjects') ? 'block' : 'none';
   if (t === 'individual') loadInspectorsByStage();
 }
 function loadInspectorsByStage() {
-  fillSelect(inspectorFilter, inspectorsData.filter(i => i.stage === stageFilter.value).map(i => i.name), '-- اختر المفتش --');
+  const names = inspectorsData.filter(i => i.stage === stageFilter.value).map(i => i.name).sort(arCmp);
+  fillSelect(inspectorFilter, [['__all__', '★ كل مفتشي المرحلة (صفحة لكل مفتش)'], ...names], '-- اختر المفتش --');
 }
 
 // الموسم: من 01 سبتمبر إلى 30 جوان من السنة الموالية
@@ -173,40 +158,8 @@ function specialtyOf(v) {
   return (f && f.specialty) || 'غير محدد';
 }
 
-function generateReport() {
-  const startYear = parseInt(reportStartYear.value) || currentSeasonStart();
-  const seasonText = seasonLabel(startYear), state = reportState.value.trim();
-  const container = reportOutput; container.innerHTML = '';
-  if (!allVisitsData.length) { alert('⚠️ لا توجد زيارات محملة بالمنظومة!'); return; }
-  const visits = allVisitsData.filter(v => inSeason(v, startYear));
-  const t = reportType.value;
-  if (t === 'subjects') (stageFilter.value === 'ثانوي') ? setPaper('a3', 'landscape') : setPaper('a4', 'landscape');
-  else setPaper('a4', 'portrait');
-  if (t === 'season') renderSeason(visits, seasonText, state, container);
-  else if (t === 'individual') {
-    if (!inspectorFilter.value) { alert('الرجاء اختيار المفتش'); return; }
-    renderIndividual(visits, inspectorFilter.value, seasonText, state, container);
-  } else renderSubjects(visits, stageFilter.value || 'ثانوي', seasonText, state, container);
-}
-
-const STAGE_ORDER = ['ابتدائي', 'متوسط', 'ثانوي'];
-const arCmp = (a, b) => a.localeCompare(b, 'ar');
-const visitKey = v => (v.municipality || '') + '|' + v.institution;
-
-// ── الورق: A3 أفقي لمواد الثانوي، A4 أفقي لباقي المراحل، A4 عمودي للبقية ──
-let PAPER = { format: 'a4', orient: 'portrait', px: 718 };
-function setPaper(format, orient) {
-  const mm = { a4: { portrait: [210, 297], landscape: [297, 210] }, a3: { portrait: [297, 420], landscape: [420, 297] } }[format][orient];
-  PAPER = { format, orient, px: Math.round((mm[0] - 16) * 3.7795) };
-  let st = document.getElementById('pageStyle');
-  if (!st) { st = document.createElement('style'); st.id = 'pageStyle'; document.head.appendChild(st); }
-  st.textContent = `@page { size: ${format.toUpperCase()} ${orient}; margin: 8mm; }`;
-  document.getElementById('paperNote').textContent = `📐 الورق: ${format.toUpperCase()} ${orient === 'landscape' ? 'أفقي' : 'عمودي'}`;
-}
-
-// ── الإحصاء: عدد الزيارات لكل مؤسسة ──
-// مؤسسات المرحلة المسجلة (حتى بصفر زيارات) + أي مؤسسة مزارة غير مسجلة، مع عدّاد كل مادة
-function buildInstitutionRows(stage, visits) {
+// ── الإحصاء: عدد الزيارات لكل مؤسسة ─────────────────────
+function buildInstitutionRows(stage, visits, includeZero) {
   const map = new Map();
   institutionsData.filter(i => i.stage === stage).forEach(i =>
     map.set((i.municipality || '') + '|' + i.name, { name: i.name, mun: i.municipality || '', count: 0, subj: {} }));
@@ -220,143 +173,207 @@ function buildInstitutionRows(stage, visits) {
     const r = map.get(key), sp = specialtyOf(v);
     r.count++; r.subj[sp] = (r.subj[sp] || 0) + 1;
   });
-  return [...map.values()].sort((a, b) => arCmp(a.mun, b.mun) || arCmp(a.name, b.name));
+  return [...map.values()].filter(r => includeZero || r.count > 0)
+    .sort((a, b) => arCmp(a.name, b.name) || arCmp(a.mun, b.mun));
 }
-
-// زيارات مفتش واحد مجمّعة حسب المؤسسة
 function inspectorRows(visits) {
   const m = new Map();
   visits.filter(v => v.institution).forEach(v => {
     const k = visitKey(v), r = m.get(k) || { name: v.institution, mun: v.municipality || '', count: 0 };
     r.count++; m.set(k, r);
   });
-  return [...m.values()].sort((a, b) => arCmp(a.mun, b.mun) || arCmp(a.name, b.name));
+  return [...m.values()].sort((a, b) => arCmp(a.name, b.name) || arCmp(a.mun, b.mun));
+}
+// عند تكرار اسم مؤسسة في بلديتين يُضاف اسم البلدية لتمييزها
+function labelRows(rows) {
+  const c = {}; rows.forEach(r => c[r.name] = (c[r.name] || 0) + 1);
+  return rows.map(r => Object.assign({}, r, { label: c[r.name] > 1 ? `${r.name} (${r.mun || 'بلدية غير محددة'})` : r.name }));
 }
 
-const HEAD4 = '<thead><tr><th style="width:7%;">#</th><th style="width:22%;">البلدية</th><th>المؤسسة</th><th style="width:18%;">عدد الزيارات</th></tr></thead>';
-function instTableHTML(rows, emptyMsg) {
-  let body = '', total = 0;
-  rows.forEach((r, i) => {
-    total += r.count;
-    body += `<tr><td>${i + 1}</td><td>${esc(r.mun) || '-'}</td><td style="text-align:right;">${esc(r.name)}</td>
-      <td style="${r.count ? 'font-weight:bold;' : 'color:#94a3b8;'}">${r.count}</td></tr>`;
+// ── الرسوم البيانية (SVG مدمج: يُطبع بجودة عالية) ────────
+const SVG_OPEN = (W, H) => `<svg viewBox="0 0 ${W} ${H}" width="100%" font-family="Tajawal, Arial, sans-serif" fill="#000" direction="rtl">`;
+function stageChartSVG(items) {
+  const W = 700, H = 280, padB = 46, padT = 34, n = items.length, slot = (W - 40) / n, bw = Math.min(110, slot * .6);
+  const max = Math.max(1, ...items.map(i => i.value));
+  const top = items.reduce((a, b) => b.value > a.value ? b : a, items[0]);
+  let g = `<line x1="20" y1="${H - padB}" x2="${W - 20}" y2="${H - padB}" stroke="#000" stroke-width="1.5"/>`;
+  items.forEach((it, i) => {
+    const h = it.value / max * (H - padB - padT), x = W - 20 - (i + 1) * slot + (slot - bw) / 2, y = H - padB - h;
+    const hot = it === top && it.value > 0;
+    g += `<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="${hot ? '#0369a1' : '#94a3b8'}"/>
+      <text x="${x + bw / 2}" y="${y - 8}" text-anchor="middle" font-size="16" font-weight="bold">${it.value}</text>
+      <text x="${x + bw / 2}" y="${H - padB + 24}" text-anchor="middle" font-size="15">${esc(it.label)}${hot ? ' ★' : ''}</text>`;
   });
-  if (!rows.length) body = `<tr><td colspan="4">${emptyMsg || 'لا توجد بيانات'}</td></tr>`;
-  return `<table class="report-table">${HEAD4}<tbody>${body}
-    <tr class="total-row"><td colspan="3" style="text-align:left;padding-left:20px;">مجموع الزيارات:</td><td>${total}</td></tr></tbody></table>`;
+  return SVG_OPEN(W, H) + g + '</svg>';
 }
-
-function renderSeason(visits, seasonText, state, container) {
-  if (!visits.length) {
-    container.innerHTML = `<div style="text-align:center;font-weight:bold;padding:40px;color:#dc2626;">⚠️ لا توجد زيارات للموسم الدراسي (${esc(seasonText)}).</div>`;
-    return;
-  }
-  // 1) الإحصائيات الإجمالية حسب المرحلة
-  const instRows = {}; STAGE_ORDER.forEach(st => instRows[st] = buildInstitutionRows(st, visits));
-  const stats = {}; STAGE_ORDER.forEach(s => stats[s] = { visits: 0, insp: new Set() });
-  visits.forEach(v => { const s = stats[v.stage]; if (s) { s.visits++; if (v.inspector) s.insp.add(v.inspector); } });
-  const allI = new Set(); let totalV = 0, totalInst = 0, totalVisited = 0, rows = '';
-  STAGE_ORDER.forEach((st, idx) => {
-    const s = stats[st], r = instRows[st], visited = r.filter(x => x.count > 0).length;
-    totalV += s.visits; totalInst += r.length; totalVisited += visited; s.insp.forEach(x => allI.add(x));
-    rows += `<tr><td>${idx + 1}</td><td style="font-weight:bold;">التعليم ${st}</td><td>${s.insp.size}</td><td>${r.length}</td><td>${visited}</td><td style="font-weight:bold;">${s.visits}</td></tr>`;
+function hbarChartSVG(items) {
+  const W = 700, rowH = 26, labW = 200, n = items.length, H = n * rowH + 8;
+  const max = Math.max(1, ...items.map(i => i.value)), barMax = W - labW - 70;
+  let g = '';
+  items.forEach((it, i) => {
+    const y = 4 + i * rowH, len = it.value / max * barMax, x0 = W - labW;
+    g += `<text x="${W - 6}" y="${y + 17}" text-anchor="end" font-size="14">${esc(it.label)}</text>
+      <rect x="${x0 - len}" y="${y + 3}" width="${len}" height="${rowH - 8}" fill="${i === 0 ? '#0369a1' : '#94a3b8'}"/>
+      <text x="${x0 - len - 6}" y="${y + 17}" text-anchor="end" font-size="14" font-weight="bold">${it.value}</text>`;
   });
-  newPage(container, `
-    <div class="report-title">الإحصائيات العددية الإجمالية للزيارات التفتيشية (${esc(seasonText)})</div>
-    <table class="report-table"><thead><tr><th style="width:6%;">#</th><th>المرحلة التعليمية</th><th>عدد المفتشين</th>
-      <th>عدد المؤسسات</th><th>المؤسسات المزارة</th><th>عدد الزيارات الإجمالي</th></tr></thead>
-      <tbody>${rows}<tr class="total-row"><td colspan="2">المجموع الكلي الإجمالي</td><td>${allI.size}</td><td>${totalInst}</td><td>${totalVisited}</td><td>${totalV}</td></tr></tbody></table>`, state);
+  return SVG_OPEN(W, H) + g + '</svg>';
+}
+const chartBox = (t, svg) => `<div class="chart-box"><div class="chart-title">${t}</div>${svg}</div>`;
 
-  // 2) عدد الزيارات لكل مؤسسة (صفحة لكل مرحلة)
+// ── 1) التقرير الشامل ────────────────────────────────────
+function renderOverall(visits, seasonText, state, container) {
+  if (!visits.length) { container.innerHTML = emptyMsg(`لا توجد زيارات للموسم الدراسي (${esc(seasonText)}).`); return; }
+
+  const S = {};
   STAGE_ORDER.forEach(st => {
-    const r = instRows[st]; if (!r.length) return;
-    const visited = r.filter(x => x.count > 0).length;
-    newPage(container, `
-      <div class="report-title">حصيلة الزيارات التفتيشية لكل مؤسسة – التعليم ${st} (${esc(seasonText)})</div>
-      <div class="inspector-info">المؤسسات المزارة: ${visited} من ${r.length}</div>
-      ${instTableHTML(r)}`, state);
+    const vs = visits.filter(v => v.stage === st);
+    S[st] = {
+      visits: vs.length,
+      insp: new Set(vs.map(v => v.inspector).filter(Boolean)).size,
+      inst: labelRows(buildInstitutionRows(st, visits, false)),
+      enc: vs.filter(v => v.penalty.includes('تشجيع')).length,
+      warn: vs.filter(v => v.penalty.includes('نذار')).length,
+      rep: vs.filter(v => v.penalty.includes('توبيخ')).length,
+      vs
+    };
   });
+  const sum = k => STAGE_ORDER.reduce((a, st) => a + S[st][k], 0);
+  const totalInst = STAGE_ORDER.reduce((a, st) => a + S[st].inst.length, 0);
+  const totalInsp = new Set(visits.map(v => v.inspector).filter(Boolean)).size;
+  const totalV = sum('visits');
+  const topStage = STAGE_ORDER.reduce((a, b) => S[b].visits > S[a].visits ? b : a, STAGE_ORDER[0]);
 
-  // 3) عدد الزيارات لكل مؤسسة حسب كل مفتش
-  const byInsp = {};
-  visits.forEach(v => { if (v.inspector) (byInsp[v.inspector] = byInsp[v.inspector] || { stage: v.stage, list: [] }).list.push(v); });
-  Object.keys(byInsp)
-    .sort((a, b) => STAGE_ORDER.indexOf(byInsp[a].stage) - STAGE_ORDER.indexOf(byInsp[b].stage) || arCmp(a, b))
-    .forEach(name => {
-      newPage(container, `
-        <div class="report-title">حصيلة الزيارات التفتيشية للموسم الدراسي ${esc(seasonText)}</div>
-        <div class="inspector-info">اسم السيد المفتش: ${esc(name)} — ${esc(byInsp[name].stage)}</div>
-        ${instTableHTML(inspectorRows(byInsp[name].list))}`, state);
-    });
-}
-
-function renderIndividual(visits, name, seasonText, state, container) {
-  const mine = visits.filter(v => v.inspector === name);
+  // الصفحة 1: الجدول الإجمالي + رسم المراحل
+  const rows = STAGE_ORDER.map(st => `<tr><td style="font-weight:bold;">التعليم ${st}</td><td>${S[st].inst.length}</td><td>${S[st].insp}</td>
+    <td style="font-weight:bold;">${S[st].visits}</td><td>${S[st].enc}</td><td>${S[st].warn}</td><td>${S[st].rep}</td></tr>`).join('');
   newPage(container, `
-    <div class="report-title">تقرير حصيلة الزيارات التفتيشية الفردية (${esc(seasonText)})</div>
+    ${title(`الإحصائيات العددية الإجمالية للزيارات التفتيشية (${esc(seasonText)})`)}
+    <table class="report-table" data-sheet="إحصائيات عامة"><thead><tr><th>المرحلة التعليمية</th><th>عدد المؤسسات المزارة</th>
+      <th>عدد المفتشين الزائرين</th><th>عدد الزيارات</th><th>التشجيعات المقترحة</th><th>الإنذارات المقترحة</th><th>التوبيخات المقترحة</th></tr></thead>
+      <tbody>${rows}<tr class="total-row"><td>المجموع الكلي</td><td>${totalInst}</td><td>${totalInsp}</td><td>${totalV}</td><td>${sum('enc')}</td><td>${sum('warn')}</td><td>${sum('rep')}</td></tr></tbody></table>
+    <div class="inspector-info" style="margin-top:18px;">المرحلة الأكثر نشاطًا في الزيارات: التعليم ${topStage} (${S[topStage].visits} زيارة، ${Math.round(S[topStage].visits / totalV * 100)}% من المجموع)</div>
+    ${chartBox('الرسم البياني: عدد الزيارات التفتيشية حسب المرحلة التعليمية', stageChartSVG(STAGE_ORDER.map(st => ({ label: 'التعليم ' + st, value: S[st].visits }))))}`, state);
+
+  // الصفحة 2: الزيارات حسب رتبة الموظف
+  const rk = new Map();
+  visits.forEach(v => {
+    const raw = cleanTxt(v.rank), label = (!raw || raw === '-') ? 'غير محددة' : raw;
+    let r = rk.get(label);
+    if (!r) { r = { label, c: { 'ابتدائي': 0, 'متوسط': 0, 'ثانوي': 0 }, total: 0 }; rk.set(label, r); }
+    if (r.c[v.stage] !== undefined) r.c[v.stage]++;
+    r.total++;
+  });
+  const rkRows = [...rk.values()].sort((a, b) => (a.label === 'غير محددة') - (b.label === 'غير محددة') || b.total - a.total || arCmp(a.label, b.label));
+  newPage(container, `
+    ${title(`عدد الزيارات التفتيشية حسب رتبة الموظف (${esc(seasonText)})`)}
+    <table class="report-table" data-sheet="حسب الرتبة"><thead><tr><th style="width:7%;">#</th><th>الرتبة</th><th>ابتدائي</th><th>متوسط</th><th>ثانوي</th><th>المجموع</th></tr></thead>
+      <tbody>${rkRows.map((r, i) => `<tr><td>${i + 1}</td><td style="text-align:right;">${esc(r.label)}</td><td>${r.c['ابتدائي'] || '-'}</td><td>${r.c['متوسط'] || '-'}</td><td>${r.c['ثانوي'] || '-'}</td><td style="font-weight:bold;">${r.total}</td></tr>`).join('')}
+      <tr class="total-row"><td colspan="2">المجموع الكلي</td><td>${sum2(rkRows, 'ابتدائي')}</td><td>${sum2(rkRows, 'متوسط')}</td><td>${sum2(rkRows, 'ثانوي')}</td><td>${totalV}</td></tr></tbody></table>`, state);
+
+  // الصفحة 3: أكثر المواد نشاطًا لكل مرحلة
+  let charts = '';
+  STAGE_ORDER.forEach(st => {
+    const m = {}; S[st].vs.forEach(v => { const sp = specialtyOf(v); m[sp] = (m[sp] || 0) + 1; });
+    const items = Object.entries(m).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value || arCmp(a.label, b.label));
+    if (items.length) charts += chartBox(`التعليم ${st} — الأكثر نشاطًا: ${esc(items[0].label)} (${items[0].value} زيارة)`, hbarChartSVG(items));
+  });
+  newPage(container, `${title(`أكثر المواد نشاطًا في الزيارات التفتيشية لكل مرحلة (${esc(seasonText)})`)}${charts}`, state);
+
+  // الصفحات التالية: عدد الزيارات في كل مؤسسة (صفحات لكل مرحلة)
+  STAGE_ORDER.forEach(st => {
+    const r = S[st].inst; if (!r.length) return;
+    let body = '', total = 0;
+    r.forEach((x, i) => { total += x.count; body += `<tr><td>${i + 1}</td><td style="text-align:right;">${esc(x.label)}</td><td>${x.count}</td></tr>`; });
+    newPage(container, `
+      ${title(`عدد الزيارات التفتيشية في كل مؤسسة – التعليم ${st} (${esc(seasonText)})`)}
+      <table class="report-table" data-sheet="مؤسسات ${st}"><thead><tr><th style="width:8%;">#</th><th>المؤسسة المزارة</th><th style="width:22%;">مجموع زيارات المفتشين</th></tr></thead>
+      <tbody>${body}<tr class="total-row"><td colspan="2">المجموع الكلي:</td><td>${total}</td></tr></tbody></table>`, state);
+  });
+}
+const sum2 = (rows, st) => rows.reduce((a, r) => a + (r.c[st] || 0), 0);
+
+// ── 2) التقرير الفردي ────────────────────────────────────
+function individualPage(vs, name, seasonText, state, container) {
+  const rows = labelRows(inspectorRows(vs));
+  let body = '', total = 0;
+  rows.forEach((r, i) => { total += r.count; body += `<tr><td>${i + 1}</td><td style="text-align:right;">${esc(r.label)}</td><td>${r.count}</td></tr>`; });
+  newPage(container, `
+    ${title(`تقرير حصيلة الزيارات التفتيشية الفردية (${esc(seasonText)})`)}
     <div class="inspector-info">المفتش: ${esc(name)}</div>
-    ${instTableHTML(inspectorRows(mine), 'لا توجد زيارات مسجلة لهذا المفتش')}`, state);
+    <table class="report-table" data-sheet="${esc(name)}"><thead><tr><th style="width:8%;">#</th><th>المؤسسة المزارة</th><th style="width:22%;">عدد الزيارات</th></tr></thead>
+    <tbody>${body || '<tr><td colspan="3">لا توجد زيارات مسجلة لهذا المفتش</td></tr>'}
+    <tr class="total-row"><td colspan="2">المجموع الكلي:</td><td>${total}</td></tr></tbody></table>`, state);
+}
+function renderIndividual(visits, who, seasonText, state, container) {
+  if (who === '__all__') {
+    const st = stageFilter.value;
+    const names = [...new Set(visits.filter(v => v.stage === st && v.inspector).map(v => v.inspector))].sort(arCmp);
+    if (!names.length) { container.innerHTML = emptyMsg(`لا توجد زيارات لمفتشي مرحلة (${esc(st)}) في هذا الموسم.`); return; }
+    names.forEach(n => individualPage(visits.filter(v => v.inspector === n), n, seasonText, state, container));
+  } else individualPage(visits.filter(v => v.inspector === who), who, seasonText, state, container);
 }
 
-// تقرير المواد: صفوف = المؤسسات، أعمدة = جميع مواد المرحلة، الخلية = عدد الزيارات
+// ── 3) تقرير المواد ──────────────────────────────────────
 function renderSubjects(visits, stage, seasonText, state, container) {
-  const rows = buildInstitutionRows(stage, visits);
-  if (!rows.length) {
-    container.innerHTML = `<div class="report-page" style="text-align:center;padding:30px;font-weight:bold;color:#dc2626;">⚠️ لا توجد مؤسسات أو زيارات لمرحلة (${esc(stage)}) في هذا الموسم.</div>`;
-    return;
-  }
+  const zero = showZero.checked;
+  const rows = labelRows(buildInstitutionRows(stage, visits, zero));
+  if (!rows.length) { container.innerHTML = emptyMsg(`لا توجد زيارات لمرحلة (${esc(stage)}) في هذا الموسم.`); return; }
   const subj = new Set();
-  inspectorsData.filter(i => i.stage === stage && i.specialty).forEach(i => subj.add(i.specialty));
   rows.forEach(r => Object.keys(r.subj).forEach(s => subj.add(s)));
+  if (zero) inspectorsData.filter(i => i.stage === stage && i.specialty).forEach(i => subj.add(i.specialty));
   const sl = [...subj].sort(arCmp), tot = {}; sl.forEach(s => tot[s] = 0);
   let grand = 0, body = '';
-  rows.forEach((r, i) => {
-    body += `<tr><td>${i + 1}</td><td>${esc(r.mun) || '-'}</td><td style="text-align:right;font-weight:bold;">${esc(r.name)}</td>`;
+  rows.forEach(r => {
+    body += `<tr><td>${esc(r.label)}</td>`;
     sl.forEach(s => { const c = r.subj[s] || 0; tot[s] += c; body += `<td>${c || '-'}</td>`; });
     grand += r.count; body += `<td style="font-weight:bold;background:#f8fafc;">${r.count}</td></tr>`;
   });
-  const fs = sl.length > 18 ? '0.68rem' : sl.length > 12 ? '0.78rem' : '0.9rem';
+  const fs = sl.length > 18 ? '.72rem' : sl.length > 12 ? '.82rem' : '.92rem';
   newPage(container, `
-    <div class="report-title">حوصلة الزيارات التفتيشية حسب مواد المفتشين (مرحلة ${esc(stage)}) - ${esc(seasonText)}</div>
-    <table class="report-table subjects-table" style="font-size:${fs};">
-      <thead><tr><th>#</th><th>البلدية</th><th style="min-width:130px;">المؤسسة / المادة</th>${sl.map(s => `<th>${esc(s)}</th>`).join('')}<th>مجموع المؤسسة</th></tr></thead>
-      <tbody>${body}</tbody>
-      <tfoot><tr class="total-row"><td colspan="3">مجموع زيارات المادة</td>${sl.map(s => `<td>${tot[s]}</td>`).join('')}<td>${grand}</td></tr></tfoot>
-    </table>`, state);
+    ${title(`حوصلة الزيارات التفتيشية حسب مواد المفتشين (مرحلة ${esc(stage)}) - ${esc(seasonText)}`)}
+    <div class="table-scroll"><table class="report-table subjects-table" data-sheet="مواد ${esc(stage)}" style="font-size:${fs};">
+      <thead><tr><th>المؤسسة / تخصص المفتش (المادة)</th>${sl.map(s => `<th>${esc(s)}</th>`).join('')}<th>مجموع المؤسسة</th></tr></thead>
+      <tbody>${body}<tr class="total-row"><td>مجموع زيارات المادة</td>${sl.map(s => `<td>${tot[s]}</td>`).join('')}<td>${grand}</td></tr></tbody>
+    </table></div>`, state);
+}
+
+// ── التوليد والتصدير ─────────────────────────────────────
+function generateReport() {
+  const startYear = parseInt(reportStartYear.value) || currentSeasonStart();
+  const seasonText = seasonLabel(startYear), state = reportState.value.trim();
+  const container = reportOutput; container.innerHTML = '';
+  if (!allVisitsData.length) { alert('⚠️ لا توجد زيارات محملة بالمنظومة!'); return; }
+  const visits = allVisitsData.filter(v => inSeason(v, startYear));
+  const t = reportType.value;
+  if (t === 'subjects') setPaper(stageFilter.value === 'ثانوي' ? 'a3' : 'a4', 'landscape');
+  else setPaper('a4', 'portrait');
+  if (t === 'season') renderOverall(visits, seasonText, state, container);
+  else if (t === 'individual') {
+    if (!inspectorFilter.value) { alert('الرجاء اختيار المفتش'); return; }
+    renderIndividual(visits, inspectorFilter.value, seasonText, state, container);
+  } else renderSubjects(visits, stageFilter.value || 'ثانوي', seasonText, state, container);
+}
+
+// الطباعة المباشرة من المتصفح (حفظ كـ PDF): نص متجهي سليم، خلفية بيضاء، وورق حسب @page
+function printReport() {
+  if (!reportOutput.querySelector('.report-page')) { alert('الرجاء عرض التقرير أولاً'); return; }
+  showToast('في نافذة الطباعة اختر الوجهة «حفظ بتنسيق PDF»، وتأكد أن حجم الورق ' + PAPER.format.toUpperCase(), 'warning', 7000);
+  setTimeout(() => window.print(), 400);
 }
 
 function exportToExcel() {
   const tables = document.querySelectorAll('.report-table');
   if (!tables.length) { alert('الرجاء عرض التقرير أولاً'); return; }
-  const wb = XLSX.utils.book_new();
-  tables.forEach((t, i) => XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(t), `تقرير_${i + 1}`));
+  const wb = XLSX.utils.book_new(), used = new Set();
+  tables.forEach((t, i) => {
+    let n = (t.dataset.sheet || ('تقرير_' + (i + 1))).replace(/[\\\/?*\[\]:]/g, ' ').trim().slice(0, 28) || ('تقرير_' + (i + 1));
+    let k = n, c = 2; while (used.has(k)) k = n + '_' + (c++);
+    used.add(k); XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(t), k);
+  });
   XLSX.writeFile(wb, `تقرير_الزيارات_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-function exportToPDF() {
-  const pages = [...reportOutput.querySelectorAll('.report-page')];
-  if (!pages.length) { alert('الرجاء عرض التقرير أولاً'); return; }
-  const t = reportType.value, dateStr = new Date().toISOString().split('T')[0];
-  let fileName = `تقرير_الزيارات_${dateStr}.pdf`;
-  if (t === 'individual') fileName = `تقرير_المفتش_${(inspectorFilter.value || 'فردي').replace(/[\/\s]/g, '_')}_${dateStr}.pdf`;
-  else if (t === 'subjects') fileName = `تقرير_المواد_${stageFilter.value}_${dateStr}.pdf`;
-
-  // نضبط عرض المحتوى على عرض الورقة، ونصدّر كل صفحة تقرير على حدة (لتفادي حدود حجم اللوحة)
-  const prevW = reportOutput.style.width;
-  reportOutput.style.width = PAPER.px + 'px'; reportOutput.classList.add('exporting');
-  const done = () => { reportOutput.style.width = prevW; reportOutput.classList.remove('exporting'); hideLoader(); };
-  const opt = { margin: [8, 8, 8, 8], filename: fileName, image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
-    jsPDF: { unit: 'mm', format: PAPER.format, orientation: PAPER.orient } };
-  showLoader();
-  let worker = html2pdf().set(opt).from(pages[0]).toPdf();
-  pages.slice(1).forEach(pg => {
-    worker = worker.get('pdf').then(pdf => { pdf.addPage(); }).from(pg).toContainer().toCanvas().toPdf();
-  });
-  worker.save().then(done).catch(e => { done(); showError('تعذر إنشاء PDF'); console.error(e); });
-}
-
-if (initPage(['admin', 'inspector', 'manager'])) { reportStartYear.value = currentSeasonStart(); init(); }
+if (initPage(['admin', 'inspector', 'manager'])) { reportStartYear.value = currentSeasonStart(); setPaper('a4', 'portrait'); init(); }
 </script>
 </body>
 </html>
