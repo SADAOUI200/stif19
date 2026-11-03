@@ -21,7 +21,7 @@
         <div class="form-group"><label>المفتش</label><select id="inspSel" required disabled></select></div>
         <div class="form-group"><label>التخصص</label><input id="specialty" readonly /></div>
         <div class="form-group"><label>اسم المعني بالزيارة</label><input id="visitee" required /></div>
-        <div class="form-group"><label>الرتبة</label><input id="rank" /></div>
+        <div class="form-group"><label>الرتبة</label><input id="rank" list="rankList" autocomplete="off" /><datalist id="rankList"></datalist></div>
         <div class="form-group"><label>الدرجة</label><input id="grade" /></div>
         <div class="form-group"><label>نوع الزيارة</label><select id="visitType"></select></div>
         <div class="form-group"><label>تاريخ الزيارة</label><input type="date" id="vDate" required /></div>
@@ -86,6 +86,7 @@
         noMun.style.display = names.length ? 'none' : 'block';
         fillSelect(munSel, names, '-- اختر البلدية --');
       }
+      rankList.innerHTML = [...new Set(visits.map(x => x.rank.trim()).filter(r => r && r !== '-'))].sort((a, b) => a.localeCompare(b, 'ar')).map(r => `<option value="${esc(r)}">`).join('');
       applySearch();
     } catch (e) { showError(e.message); }
     hideLoader();

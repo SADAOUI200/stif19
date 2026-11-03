@@ -76,6 +76,11 @@
         }
     
 .navbar label { color: inherit; }
+        .report-table tr { page-break-inside: avoid; }
+        .subjects-table th, .subjects-table td { white-space: normal; padding: 4px 3px; word-break: keep-all; }
+        .subjects-table th:first-child, .subjects-table td:first-child { white-space: nowrap; }
+        .exporting #reportOutput, #reportOutput.exporting { padding: 0 !important; min-height: 0; }
+        .exporting .report-page { border: none; box-shadow: none; margin: 0; }
 </style>
 </head>
 <body>
@@ -105,6 +110,7 @@
     <button class="btn-action btn-print" style="background:#475569;" onclick="window.print()">🖨️ طباعة التقرير</button>
     <button class="btn-action btn-excel" onclick="exportToExcel()">📊 تصدير Excel</button>
     <button class="btn-action btn-pdf" onclick="exportToPDF()">📄 تصدير PDF</button>
+    <span id="paperNote" style="font-size:.9rem;color:#475569;align-self:center;font-weight:bold;"></span>
   </div>
 </div>
 
@@ -115,7 +121,7 @@
 <script src="config.js"></script>
 <script src="core.js"></script>
 <script>
-let allVisitsData = [], inspectorsData = [];
+let allVisitsData = [], inspectorsData = [], institutionsData = [];
 
 function headerHTML(state) {
   return `<div class="official-header">
@@ -138,8 +144,8 @@ function newPage(container, inner, state) {
 async function init() {
   showLoader();
   try {
-    const d = await listMany(['visits', 'inspectors', 'settings']);
-    allVisitsData = d.visits; inspectorsData = d.inspectors;
+    const d = await listMany(['visits', 'inspectors', 'institutions', 'settings']);
+    allVisitsData = d.visits; inspectorsData = d.inspectors; institutionsData = d.institutions;
     reportState.value = d.settings.directorate || '';
   } catch (e) { showError(e.message); }
   hideLoader();
@@ -174,6 +180,8 @@ function generateReport() {
   if (!allVisitsData.length) { alert('⚠️ لا توجد زيارات محملة بالمنظومة!'); return; }
   const visits = allVisitsData.filter(v => inSeason(v, startYear));
   const t = reportType.value;
+  if (t === 'subjects') (stageFilter.value === 'ثانوي') ? setPaper('a3', 'landscape') : setPaper('a4', 'landscape');
+  else setPaper('a4', 'portrait');
   if (t === 'season') renderSeason(visits, seasonText, state, container);
   else if (t === 'individual') {
     if (!inspectorFilter.value) { alert('الرجاء اختيار المفتش'); return; }
@@ -181,10 +189,61 @@ function generateReport() {
   } else renderSubjects(visits, stageFilter.value || 'ثانوي', seasonText, state, container);
 }
 
-function instTable(map) {
-  let rows = '', i = 1, total = 0;
-  for (const [inst, c] of Object.entries(map)) { total += c; rows += `<tr><td>${i++}</td><td style="text-align:right;">${esc(inst)}</td><td>${c}</td></tr>`; }
-  return { rows, total };
+const STAGE_ORDER = ['ابتدائي', 'متوسط', 'ثانوي'];
+const arCmp = (a, b) => a.localeCompare(b, 'ar');
+const visitKey = v => (v.municipality || '') + '|' + v.institution;
+
+// ── الورق: A3 أفقي لمواد الثانوي، A4 أفقي لباقي المراحل، A4 عمودي للبقية ──
+let PAPER = { format: 'a4', orient: 'portrait', px: 718 };
+function setPaper(format, orient) {
+  const mm = { a4: { portrait: [210, 297], landscape: [297, 210] }, a3: { portrait: [297, 420], landscape: [420, 297] } }[format][orient];
+  PAPER = { format, orient, px: Math.round((mm[0] - 16) * 3.7795) };
+  let st = document.getElementById('pageStyle');
+  if (!st) { st = document.createElement('style'); st.id = 'pageStyle'; document.head.appendChild(st); }
+  st.textContent = `@page { size: ${format.toUpperCase()} ${orient}; margin: 8mm; }`;
+  document.getElementById('paperNote').textContent = `📐 الورق: ${format.toUpperCase()} ${orient === 'landscape' ? 'أفقي' : 'عمودي'}`;
+}
+
+// ── الإحصاء: عدد الزيارات لكل مؤسسة ──
+// مؤسسات المرحلة المسجلة (حتى بصفر زيارات) + أي مؤسسة مزارة غير مسجلة، مع عدّاد كل مادة
+function buildInstitutionRows(stage, visits) {
+  const map = new Map();
+  institutionsData.filter(i => i.stage === stage).forEach(i =>
+    map.set((i.municipality || '') + '|' + i.name, { name: i.name, mun: i.municipality || '', count: 0, subj: {} }));
+  visits.filter(v => v.stage === stage && v.institution).forEach(v => {
+    let key = visitKey(v);
+    if (!map.has(key) && !v.municipality) {
+      const hit = [...map.keys()].find(k => map.get(k).name === v.institution);
+      if (hit) key = hit;
+    }
+    if (!map.has(key)) map.set(key, { name: v.institution, mun: v.municipality || '', count: 0, subj: {} });
+    const r = map.get(key), sp = specialtyOf(v);
+    r.count++; r.subj[sp] = (r.subj[sp] || 0) + 1;
+  });
+  return [...map.values()].sort((a, b) => arCmp(a.mun, b.mun) || arCmp(a.name, b.name));
+}
+
+// زيارات مفتش واحد مجمّعة حسب المؤسسة
+function inspectorRows(visits) {
+  const m = new Map();
+  visits.filter(v => v.institution).forEach(v => {
+    const k = visitKey(v), r = m.get(k) || { name: v.institution, mun: v.municipality || '', count: 0 };
+    r.count++; m.set(k, r);
+  });
+  return [...m.values()].sort((a, b) => arCmp(a.mun, b.mun) || arCmp(a.name, b.name));
+}
+
+const HEAD4 = '<thead><tr><th style="width:7%;">#</th><th style="width:22%;">البلدية</th><th>المؤسسة</th><th style="width:18%;">عدد الزيارات</th></tr></thead>';
+function instTableHTML(rows, emptyMsg) {
+  let body = '', total = 0;
+  rows.forEach((r, i) => {
+    total += r.count;
+    body += `<tr><td>${i + 1}</td><td>${esc(r.mun) || '-'}</td><td style="text-align:right;">${esc(r.name)}</td>
+      <td style="${r.count ? 'font-weight:bold;' : 'color:#94a3b8;'}">${r.count}</td></tr>`;
+  });
+  if (!rows.length) body = `<tr><td colspan="4">${emptyMsg || 'لا توجد بيانات'}</td></tr>`;
+  return `<table class="report-table">${HEAD4}<tbody>${body}
+    <tr class="total-row"><td colspan="3" style="text-align:left;padding-left:20px;">مجموع الزيارات:</td><td>${total}</td></tr></tbody></table>`;
 }
 
 function renderSeason(visits, seasonText, state, container) {
@@ -192,73 +251,78 @@ function renderSeason(visits, seasonText, state, container) {
     container.innerHTML = `<div style="text-align:center;font-weight:bold;padding:40px;color:#dc2626;">⚠️ لا توجد زيارات للموسم الدراسي (${esc(seasonText)}).</div>`;
     return;
   }
-  const stats = {}; LEVELS.forEach(s => stats[s] = { visits: 0, insp: new Set(), inst: new Set() });
-  const byInsp = {};
-  visits.forEach(v => {
-    const s = stats[v.stage];
-    if (s) { s.visits++; if (v.inspector) s.insp.add(v.inspector); if (v.institution) s.inst.add(v.institution); }
-    if (v.inspector && v.institution) {
-      byInsp[v.inspector] = byInsp[v.inspector] || {};
-      byInsp[v.inspector][v.institution] = (byInsp[v.inspector][v.institution] || 0) + 1;
-    }
-  });
-  const allI = new Set(), allN = new Set(); let totalV = 0, rows = '';
-  LEVELS.forEach((st, idx) => {
-    const s = stats[st]; totalV += s.visits; s.insp.forEach(x => allI.add(x)); s.inst.forEach(x => allN.add(x));
-    rows += `<tr><td>${idx + 1}</td><td style="font-weight:bold;">التعليم ${st}</td><td>${s.insp.size}</td><td>${s.inst.size}</td><td style="font-weight:bold;">${s.visits}</td></tr>`;
+  // 1) الإحصائيات الإجمالية حسب المرحلة
+  const instRows = {}; STAGE_ORDER.forEach(st => instRows[st] = buildInstitutionRows(st, visits));
+  const stats = {}; STAGE_ORDER.forEach(s => stats[s] = { visits: 0, insp: new Set() });
+  visits.forEach(v => { const s = stats[v.stage]; if (s) { s.visits++; if (v.inspector) s.insp.add(v.inspector); } });
+  const allI = new Set(); let totalV = 0, totalInst = 0, totalVisited = 0, rows = '';
+  STAGE_ORDER.forEach((st, idx) => {
+    const s = stats[st], r = instRows[st], visited = r.filter(x => x.count > 0).length;
+    totalV += s.visits; totalInst += r.length; totalVisited += visited; s.insp.forEach(x => allI.add(x));
+    rows += `<tr><td>${idx + 1}</td><td style="font-weight:bold;">التعليم ${st}</td><td>${s.insp.size}</td><td>${r.length}</td><td>${visited}</td><td style="font-weight:bold;">${s.visits}</td></tr>`;
   });
   newPage(container, `
     <div class="report-title">الإحصائيات العددية الإجمالية للزيارات التفتيشية (${esc(seasonText)})</div>
-    <table class="report-table"><thead><tr><th style="width:8%;">#</th><th>المرحلة التعليمية</th><th>عدد المفتشين</th>
-      <th>عدد المؤسسات المزارة (بدون تكرار)</th><th>عدد الزيارات الإجمالي</th></tr></thead>
-      <tbody>${rows}<tr class="total-row"><td colspan="2">المجموع الكلي الإجمالي</td><td>${allI.size}</td><td>${allN.size}</td><td>${totalV}</td></tr></tbody></table>`, state);
-  Object.keys(byInsp).forEach(name => {
-    const { rows, total } = instTable(byInsp[name]);
+    <table class="report-table"><thead><tr><th style="width:6%;">#</th><th>المرحلة التعليمية</th><th>عدد المفتشين</th>
+      <th>عدد المؤسسات</th><th>المؤسسات المزارة</th><th>عدد الزيارات الإجمالي</th></tr></thead>
+      <tbody>${rows}<tr class="total-row"><td colspan="2">المجموع الكلي الإجمالي</td><td>${allI.size}</td><td>${totalInst}</td><td>${totalVisited}</td><td>${totalV}</td></tr></tbody></table>`, state);
+
+  // 2) عدد الزيارات لكل مؤسسة (صفحة لكل مرحلة)
+  STAGE_ORDER.forEach(st => {
+    const r = instRows[st]; if (!r.length) return;
+    const visited = r.filter(x => x.count > 0).length;
     newPage(container, `
-      <div class="report-title">حصيلة الزيارات التفتيشية للموسم الدراسي ${esc(seasonText)}</div>
-      <div class="inspector-info">اسم السيد المفتش: ${esc(name)}</div>
-      <table class="report-table"><thead><tr><th style="width:10%;">#</th><th>اسم المؤسسة المزارة</th><th style="width:25%;">عدد الزيارات</th></tr></thead>
-      <tbody>${rows}<tr class="total-row"><td colspan="2" style="text-align:left;padding-left:20px;">مجموع الزيارات:</td><td>${total}</td></tr></tbody></table>`, state);
+      <div class="report-title">حصيلة الزيارات التفتيشية لكل مؤسسة – التعليم ${st} (${esc(seasonText)})</div>
+      <div class="inspector-info">المؤسسات المزارة: ${visited} من ${r.length}</div>
+      ${instTableHTML(r)}`, state);
   });
+
+  // 3) عدد الزيارات لكل مؤسسة حسب كل مفتش
+  const byInsp = {};
+  visits.forEach(v => { if (v.inspector) (byInsp[v.inspector] = byInsp[v.inspector] || { stage: v.stage, list: [] }).list.push(v); });
+  Object.keys(byInsp)
+    .sort((a, b) => STAGE_ORDER.indexOf(byInsp[a].stage) - STAGE_ORDER.indexOf(byInsp[b].stage) || arCmp(a, b))
+    .forEach(name => {
+      newPage(container, `
+        <div class="report-title">حصيلة الزيارات التفتيشية للموسم الدراسي ${esc(seasonText)}</div>
+        <div class="inspector-info">اسم السيد المفتش: ${esc(name)} — ${esc(byInsp[name].stage)}</div>
+        ${instTableHTML(inspectorRows(byInsp[name].list))}`, state);
+    });
 }
 
 function renderIndividual(visits, name, seasonText, state, container) {
-  const map = {};
-  visits.filter(v => v.inspector === name && v.institution).forEach(v => map[v.institution] = (map[v.institution] || 0) + 1);
-  const { rows, total } = instTable(map);
+  const mine = visits.filter(v => v.inspector === name);
   newPage(container, `
     <div class="report-title">تقرير حصيلة الزيارات التفتيشية الفردية (${esc(seasonText)})</div>
     <div class="inspector-info">المفتش: ${esc(name)}</div>
-    <table class="report-table"><thead><tr><th>#</th><th>المؤسسة المزارة</th><th>عدد الزيارات</th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="3">لا توجد زيارات مسجلة لهذا المفتش</td></tr>'}
-    <tr class="total-row"><td colspan="2">المجموع الكلي:</td><td>${total}</td></tr></tbody></table>`, state);
+    ${instTableHTML(inspectorRows(mine), 'لا توجد زيارات مسجلة لهذا المفتش')}`, state);
 }
 
+// تقرير المواد: صفوف = المؤسسات، أعمدة = جميع مواد المرحلة، الخلية = عدد الزيارات
 function renderSubjects(visits, stage, seasonText, state, container) {
-  const sv = visits.filter(v => v.stage === stage);
-  if (!sv.length) {
-    container.innerHTML = `<div class="report-page" style="text-align:center;padding:30px;font-weight:bold;color:#dc2626;">⚠️ لا توجد زيارات لمرحلة (${esc(stage)}) في هذا الموسم.</div>`;
+  const rows = buildInstitutionRows(stage, visits);
+  if (!rows.length) {
+    container.innerHTML = `<div class="report-page" style="text-align:center;padding:30px;font-weight:bold;color:#dc2626;">⚠️ لا توجد مؤسسات أو زيارات لمرحلة (${esc(stage)}) في هذا الموسم.</div>`;
     return;
   }
-  const subj = new Set(), insts = new Set(), m = {};
-  sv.forEach(v => {
-    const s = specialtyOf(v), i = v.institution || 'غير محددة';
-    subj.add(s); insts.add(i); m[i] = m[i] || {}; m[i][s] = (m[i][s] || 0) + 1;
+  const subj = new Set();
+  inspectorsData.filter(i => i.stage === stage && i.specialty).forEach(i => subj.add(i.specialty));
+  rows.forEach(r => Object.keys(r.subj).forEach(s => subj.add(s)));
+  const sl = [...subj].sort(arCmp), tot = {}; sl.forEach(s => tot[s] = 0);
+  let grand = 0, body = '';
+  rows.forEach((r, i) => {
+    body += `<tr><td>${i + 1}</td><td>${esc(r.mun) || '-'}</td><td style="text-align:right;font-weight:bold;">${esc(r.name)}</td>`;
+    sl.forEach(s => { const c = r.subj[s] || 0; tot[s] += c; body += `<td>${c || '-'}</td>`; });
+    grand += r.count; body += `<td style="font-weight:bold;background:#f8fafc;">${r.count}</td></tr>`;
   });
-  const sl = [...subj].sort((a, b) => a.localeCompare(b, 'ar')), il = [...insts].sort((a, b) => a.localeCompare(b, 'ar'));
-  const tot = {}; sl.forEach(s => tot[s] = 0); let grand = 0, body = '';
-  il.forEach(i => {
-    let it = 0; body += `<tr><td style="text-align:right;font-weight:bold;">${esc(i)}</td>`;
-    sl.forEach(s => { const c = m[i][s] || 0; it += c; tot[s] += c; body += `<td>${c || '-'}</td>`; });
-    grand += it; body += `<td style="font-weight:bold;background:#f8fafc;">${it}</td></tr>`;
-  });
+  const fs = sl.length > 18 ? '0.68rem' : sl.length > 12 ? '0.78rem' : '0.9rem';
   newPage(container, `
     <div class="report-title">حوصلة الزيارات التفتيشية حسب مواد المفتشين (مرحلة ${esc(stage)}) - ${esc(seasonText)}</div>
-    <div style="width:100%;overflow-x:auto;"><table class="report-table">
-      <thead><tr><th>المؤسسة / تخصص المفتش (المادة)</th>${sl.map(s => `<th>${esc(s)}</th>`).join('')}<th>مجموع المؤسسة</th></tr></thead>
+    <table class="report-table subjects-table" style="font-size:${fs};">
+      <thead><tr><th>#</th><th>البلدية</th><th style="min-width:130px;">المؤسسة / المادة</th>${sl.map(s => `<th>${esc(s)}</th>`).join('')}<th>مجموع المؤسسة</th></tr></thead>
       <tbody>${body}</tbody>
-      <tfoot><tr class="total-row"><td>مجموع زيارات المادة</td>${sl.map(s => `<td>${tot[s]}</td>`).join('')}<td>${grand}</td></tr></tfoot>
-    </table></div>`, state);
+      <tfoot><tr class="total-row"><td colspan="3">مجموع زيارات المادة</td>${sl.map(s => `<td>${tot[s]}</td>`).join('')}<td>${grand}</td></tr></tfoot>
+    </table>`, state);
 }
 
 function exportToExcel() {
@@ -270,14 +334,26 @@ function exportToExcel() {
 }
 
 function exportToPDF() {
-  if (!reportOutput.querySelector('.report-page')) { alert('الرجاء عرض التقرير أولاً'); return; }
+  const pages = [...reportOutput.querySelectorAll('.report-page')];
+  if (!pages.length) { alert('الرجاء عرض التقرير أولاً'); return; }
   const t = reportType.value, dateStr = new Date().toISOString().split('T')[0];
-  let fileName = `تقرير_الزيارات_${dateStr}.pdf`, format = 'a4', orient = 'portrait';
+  let fileName = `تقرير_الزيارات_${dateStr}.pdf`;
   if (t === 'individual') fileName = `تقرير_المفتش_${(inspectorFilter.value || 'فردي').replace(/[\/\s]/g, '_')}_${dateStr}.pdf`;
-  else if (t === 'subjects') { orient = 'landscape'; format = 'a3'; fileName = `تقرير_المواد_${dateStr}.pdf`; }
-  html2pdf().set({ margin: [8, 8, 8, 8], filename: fileName, image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 }, jsPDF: { unit: 'mm', format, orientation: orient } })
-    .from(reportOutput).save();
+  else if (t === 'subjects') fileName = `تقرير_المواد_${stageFilter.value}_${dateStr}.pdf`;
+
+  // نضبط عرض المحتوى على عرض الورقة، ونصدّر كل صفحة تقرير على حدة (لتفادي حدود حجم اللوحة)
+  const prevW = reportOutput.style.width;
+  reportOutput.style.width = PAPER.px + 'px'; reportOutput.classList.add('exporting');
+  const done = () => { reportOutput.style.width = prevW; reportOutput.classList.remove('exporting'); hideLoader(); };
+  const opt = { margin: [8, 8, 8, 8], filename: fileName, image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: PAPER.format, orientation: PAPER.orient } };
+  showLoader();
+  let worker = html2pdf().set(opt).from(pages[0]).toPdf();
+  pages.slice(1).forEach(pg => {
+    worker = worker.get('pdf').then(pdf => { pdf.addPage(); }).from(pg).toContainer().toCanvas().toPdf();
+  });
+  worker.save().then(done).catch(e => { done(); showError('تعذر إنشاء PDF'); console.error(e); });
 }
 
 if (initPage(['admin', 'inspector', 'manager'])) { reportStartYear.value = currentSeasonStart(); init(); }

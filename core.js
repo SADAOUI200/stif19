@@ -6,7 +6,8 @@
 const LEVELS = ['ابتدائي', 'متوسط', 'ثانوي'];
 const SPECIALTIES = ['رياضيات', 'علوم فيزيائية', 'علوم طبيعية', 'لغة عربية', 'لغة فرنسية', 'لغة إنجليزية',
   'تاريخ وجغرافيا', 'فلسفة', 'تربية بدنية', 'تربية إسلامية', 'إعلام آلي', 'تسيير واقتصاد', 'أمازيغية',
-  'فنون', 'موسيقى', 'تخصص آخر'];
+  'فنون', 'موسيقى', 'إدارة الثانويات', 'إدارة المتوسطات', 'إدارة المدارس الابتدائية',
+  'التسيير المالي والمادي', 'هندسة ميكانيكية', 'تخصص آخر'];
 const INSPECTOR_RANKS = ['مفتش مساعد', 'مفتش', 'مفتش أول', 'مفتش عام'];
 const VISIT_TYPES = ['توجيهية', 'تثبيت', 'ترقية'];
 const PENALTIES = ['لا شيء', 'إقتراح إنذار', 'إقتراح توبيخ', 'إقتراح تشجيع', 'إقتراح ترسيم'];
@@ -55,6 +56,18 @@ async function changeMyPassword() {
   hideLoader();
 }
 
+// ── المديرية (tenant): من الرابط ?d=  ثم config.js ثم المحفوظ ──
+function getTenant() {
+  const q = (new URLSearchParams(location.search).get('d') || '').toLowerCase();
+  const prev = localStorage.getItem('visits_tenant') || '';
+  if (q) {
+    if (q !== prev) clearSession();
+    localStorage.setItem('visits_tenant', q);
+    return q;
+  }
+  return CONFIG.TENANT || prev;
+}
+
 // ── الاتصال بالخادم ─────────────────────────────────────
 async function api(action, payload = {}) {
   if (!CONFIG.API_URL || CONFIG.API_URL.startsWith('PASTE')) {
@@ -66,7 +79,7 @@ async function api(action, payload = {}) {
     res = await fetch(CONFIG.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // يتجنب طلب preflight
-      body: JSON.stringify({ action, token: s && s.token, ...payload })
+      body: JSON.stringify({ action, token: s && s.token, tenant: getTenant(), ...payload })
     });
   } catch (e) { throw new Error('تعذر الاتصال بالخادم. تحقق من الإنترنت'); }
   const j = await res.json();
