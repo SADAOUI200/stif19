@@ -11,7 +11,7 @@
 <div class="container">
   <div class="page-header"><h2>🏢 <span>إدارة المؤسسات التعليمية</span></h2><span class="badge badge-manager" id="cnt"></span></div>
 
-  <div class="card fade-in">
+  <div class="card fade-in" id="formCard">
     <div class="card-title" id="formTitle">➕ إضافة مؤسسة</div>
     <div class="hint" id="noMun" style="display:none;">لم تُسجَّل بلديات بعد — <a href="settings.html">أضفها من صفحة الإعدادات</a> لتظهر في القائمة.</div>
     <form id="form">
@@ -37,7 +37,7 @@
       <select id="qStage" onchange="render()"></select>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>#</th><th>البلدية</th><th>المؤسسة</th><th>المرحلة</th><th>المدير</th><th>المسيّر المالي</th><th>إجراءات</th></tr></thead>
+      <thead><tr><th>#</th><th>البلدية</th><th>المؤسسة</th><th>المرحلة</th><th>المدير</th><th>المسيّر المالي</th><th id="thAct">إجراءات</th></tr></thead>
       <tbody id="body"></tbody>
     </table></div>
   </div>
@@ -45,7 +45,9 @@
 <script src="config.js"></script>
 <script src="core.js"></script>
 <script>
-  let all = [], editId = null;
+  let all = [], editId = null, ME;
+  const CAN_EDIT = can('institutions', 'edit'), CAN_DEL = can('institutions', 'delete'), CAN_ADD = can('institutions', 'add');
+  const actCell = id => (CAN_EDIT || CAN_DEL) ? `<td class="action-btns">${CAN_EDIT ? `<button class="btn btn-primary btn-sm" onclick="edit('${esc(id)}')">📝</button>` : ''}${CAN_DEL ? `<button class="btn btn-danger btn-sm" onclick="del('${esc(id)}')">🗑️</button>` : ''}</td>` : '';
   const val = id => document.getElementById(id).value.trim();
 
   async function load() {
@@ -68,21 +70,19 @@
     body.innerHTML = rows.length ? rows.map((i, k) => `
       <tr><td>${k + 1}</td><td>${esc(i.municipality)}</td><td><strong>${esc(i.name)}</strong></td><td>${esc(i.stage)}</td>
       <td>${esc(i.director) || '-'}</td><td>${esc(i.finManager) || '-'}</td>
-      <td class="action-btns">
-        <button class="btn btn-primary btn-sm" onclick="edit('${esc(i.id)}')">📝</button>
-        <button class="btn btn-danger btn-sm" onclick="del('${esc(i.id)}')">🗑️</button>
-      </td></tr>`).join('')
+      ${actCell(i.id)}</tr>`).join('')
       : '<tr><td colspan="7" class="empty-state"><span class="icon">🏢</span>لا توجد مؤسسات</td></tr>';
   }
   function edit(id) {
     const i = all.find(x => x.id === id); if (!i) return;
-    editId = id; setSelectValue(municipality, i.municipality); fName.value = i.name; stage.value = i.stage;
+    editId = id; formCard.style.display = ''; setSelectValue(municipality, i.municipality); fName.value = i.name; stage.value = i.stage;
     director.value = i.director; finManager.value = i.finManager;
     formTitle.textContent = '📝 تعديل مؤسسة'; saveBtn.textContent = '💾 حفظ التعديلات';
     scrollTo({ top: 0, behavior: 'smooth' });
   }
   function resetForm() {
     editId = null; form.reset(); formTitle.textContent = '➕ إضافة مؤسسة'; saveBtn.textContent = '💾 حفظ المؤسسة';
+    formCard.style.display = CAN_ADD ? '' : 'none';
   }
   form.onsubmit = async e => {
     e.preventDefault();
@@ -102,7 +102,8 @@
   }
   fillSelect(stage, LEVELS, '-- اختر المرحلة --');
   fillSelect(qStage, LEVELS, '-- كل المراحل --');
-  if (initPage(['admin'])) load();
+  ME = initPage(null, ['institutions', 'view']);
+  if (ME) { if (!CAN_EDIT && !CAN_DEL) thAct.style.display = 'none'; formCard.style.display = CAN_ADD ? '' : 'none'; load(); }
 </script>
 </body>
 </html>

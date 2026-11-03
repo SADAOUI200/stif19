@@ -52,7 +52,8 @@
 <script src="config.js"></script>
 <script src="core.js"></script>
 <script>
-  let inspectors = [], missions = [];
+  let inspectors = [], missions = [], ME;
+  const CAN_ADD = can('missions', 'add'), CAN_DEL = can('missions', 'delete');
   const g = id => document.getElementById(id);
   const FIELDS = ['number', 'stage', 'inspector', 'residence', 'place', 'departDate', 'returnDate', 'subject', 'note'];
 
@@ -68,13 +69,13 @@
   async function load() {
     showLoader();
     try {
-      const d = await listMany(['inspectors', 'missions']);
+      const d = await listMany(['inspectors', 'missions'], true);
       inspectors = d.inspectors; missions = d.missions.reverse();
       tbody.innerHTML = missions.length ? missions.map(m => `
         <tr><td>${esc(m.number)}</td><td>${esc(m.inspector)}</td><td>${esc(m.place)}</td><td>${esc(m.departDate)}</td><td>${esc(m.returnDate)}</td>
         <td class="action-btns">
           <button class="btn btn-primary btn-sm" onclick="printMission('${esc(m.id)}')">🖨️ طباعة</button>
-          <button class="btn btn-danger btn-sm" onclick="del('${esc(m.id)}')">🗑️</button>
+          ${CAN_DEL ? `<button class="btn btn-danger btn-sm" onclick="del('${esc(m.id)}')">🗑️</button>` : ''}
         </td></tr>`).join('')
         : '<tr><td colspan="6" class="empty-state">لا توجد أوامر محفوظة</td></tr>';
     } catch (e) { showError(e.message); }
@@ -103,7 +104,8 @@
     } catch (ex) { showError(ex.message); }
     saveBtn.disabled = false; hideLoader();
   };
-  if (initPage(['admin'])) { fillInspectors(); load(); }
+  ME = initPage(null, ['missions', 'view']);
+  if (ME) { if (!CAN_ADD) saveBtn.style.display = 'none'; fillInspectors(); load(); }
 </script>
 </body>
 </html>

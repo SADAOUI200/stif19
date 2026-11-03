@@ -4,6 +4,16 @@
 <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>لوحة التحكم – نظام إدارة الزيارات التفتيشية</title>
 <link rel="stylesheet" href="style.css" />
+<style>
+  .perm-table th, .perm-table td { text-align: center; padding: .5rem .6rem; }
+  .perm-table td:first-child, .perm-table th:first-child { text-align: right; }
+  .perm-table input { width: auto; }
+  .badge-off { background: rgba(239,68,68,.2); color: #fca5a5; border: 1px solid rgba(239,68,68,.4); }
+  .badge-on { background: rgba(16,185,129,.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,.35); }
+  .row-off td { opacity: .55; }
+  .inline-check { display: flex; align-items: center; gap: .5rem; }
+  .inline-check input { width: auto; }
+</style>
 </head>
 <body>
 <div class="loader-overlay" id="loaderOverlay"><div class="spinner"></div></div>
@@ -26,24 +36,50 @@
   <div class="card fade-in">
     <div class="card-title">👥 حسابات النظام</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>الاسم الكامل</th><th>اسم المستخدم</th><th>الصلاحية</th><th>إجراءات</th></tr></thead>
+      <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>المفتش المرتبط</th><th>الحالة</th><th>إجراءات</th></tr></thead>
       <tbody id="usersBody"></tbody>
     </table></div>
   </div>
 </div>
 
-<div id="accountModal" class="modal"><div class="modal-content" style="width:90%;">
-  <h3 style="margin-bottom:1.25rem;">👤 حساب جديد</h3>
+<div id="accountModal" class="modal"><div class="modal-content" style="width:92%;max-width:640px;">
+  <h3 style="margin-bottom:1.25rem;" id="mTitle">👤 حساب جديد</h3>
   <form id="accForm">
-    <div class="form-group"><label>الاسم الكامل</label><input id="fName" required></div>
-    <div class="form-group" style="margin-top:.75rem;"><label>اسم الدخول</label><input id="fUser" required autocomplete="off"></div>
-    <div class="form-group" style="margin-top:.75rem;"><label>كلمة المرور (6 أحرف على الأقل)</label><input type="password" id="fPass" required minlength="6" autocomplete="new-password"></div>
-    <div class="form-group" style="margin-top:.75rem;"><label>الصلاحية</label>
-      <select id="fRole">
-        <option value="inspector">مفتش (يسجّل الزيارات)</option>
-        <option value="manager">مسيّر (اطلاع وتقارير)</option>
-        <option value="admin">مدير النظام</option>
-      </select></div>
+    <div class="form-grid">
+      <div class="form-group"><label>نوع الحساب</label>
+        <select id="fRole" onchange="onRoleChange()">
+          <option value="inspector">مفتش (مرتبط بسجل مفتش)</option>
+          <option value="manager">مسيّر</option>
+          <option value="admin">مدير النظام</option>
+        </select></div>
+
+      <div class="form-group" id="gName"><label>الاسم الكامل</label><input id="fName"></div>
+      <div class="form-group" id="gStage"><label>المرحلة التعليمية</label><select id="fStage" onchange="fillInspectorSelect()"></select></div>
+      <div class="form-group" id="gInsp"><label>اسم المفتش</label><select id="fInsp"></select></div>
+
+      <div class="form-group"><label>اسم الدخول</label><input id="fUser" required autocomplete="off" dir="ltr"></div>
+      <div class="form-group"><label id="lPass">كلمة المرور (6 أحرف على الأقل)</label><input type="password" id="fPass" autocomplete="new-password"></div>
+      <div class="form-group"><label>حالة الحساب</label>
+        <label class="inline-check"><input type="checkbox" id="fActive" checked> مفعّل (يمكنه الدخول)</label></div>
+    </div>
+
+    <div id="permBox" style="margin-top:1rem;">
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem;">
+        <strong style="color:var(--accent-light);">🔐 الصلاحيات</strong>
+        <span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setAll(true)">تحديد الكل</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setAll(false)">إلغاء الكل</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="applyPreset()">الافتراضي للدور</button>
+        </span>
+      </div>
+      <div class="table-wrap"><table class="perm-table" id="permGrid"></table></div>
+      <p style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem;">
+        «الاطلاع» شرط للإضافة والتعديل والحذف. يحتاج المفتش لاطلاع على «المؤسسات» ليختار المؤسسة عند تسجيل الزيارة.
+        المفتش المرتبط بحساب يرى زياراته فقط مهما كانت الصلاحيات.</p>
+    </div>
+    <p id="adminNote" style="display:none;color:var(--text-muted);margin-top:1rem;">مدير النظام يملك كل الصلاحيات (الحسابات والإعدادات والبلديات وكل الأقسام).</p>
+
     <div class="form-actions">
       <button type="button" class="btn btn-ghost" onclick="closeModal()">إلغاء</button>
       <button type="submit" class="btn btn-accent">حفظ</button>
@@ -54,40 +90,128 @@
 <script src="config.js"></script>
 <script src="core.js"></script>
 <script>
-  let me, users = [];
-  const openModal = () => accountModal.classList.add('open');
-  const closeModal = () => { accountModal.classList.remove('open'); accForm.reset(); };
+  let me, users = [], inspectors = [], editId = null;
+  const modalEl = document.getElementById('accountModal');
+  const closeModal = () => { modalEl.classList.remove('open'); editId = null; };
 
   async function load() {
     showLoader();
     try {
       const d = await listMany(['inspectors', 'institutions', 'visits', 'users']);
-      cInst.textContent = d.institutions.length;
-      cInsp.textContent = d.inspectors.length;
-      cVis.textContent = d.visits.length;
+      inspectors = d.inspectors; users = d.users;
+      cInst.textContent = d.institutions.length; cInsp.textContent = inspectors.length; cVis.textContent = d.visits.length;
       const n = s => d.visits.filter(v => v.stage === s).length;
       cPri.textContent = n('ابتدائي'); cMid.textContent = n('متوسط'); cSec.textContent = n('ثانوي');
-      users = d.users;
-      usersBody.innerHTML = users.map(u => `
-        <tr><td><strong>${esc(u.name)}</strong></td><td><code>${esc(u.username)}</code></td>
-        <td><span class="badge badge-${esc(u.role)}">${esc(ROLE_LABELS[u.role] || u.role)}</span></td>
-        <td class="action-btns">
-          <button class="btn btn-ghost btn-sm" onclick="resetPw('${esc(u.id)}')">🔑 كلمة مرور جديدة</button>
-          <button class="btn btn-danger btn-sm" onclick="delUser('${esc(u.id)}')" ${u.id === me.id ? 'disabled' : ''}>حذف</button>
-        </td></tr>`).join('');
+      renderUsers();
     } catch (e) { showError(e.message); }
     hideLoader();
   }
 
+  function renderUsers() {
+    usersBody.innerHTML = users.map(u => {
+      const on = u.active !== '0', insp = inspectors.find(i => i.id === u.inspectorId);
+      const link = u.role === 'inspector'
+        ? (insp ? `${esc(insp.stage)} — ${esc(insp.name)}` : '<span class="badge badge-off">غير مرتبط</span>') : '-';
+      const self = u.id === me.id;
+      return `<tr class="${on ? '' : 'row-off'}"><td><strong>${esc(u.name)}</strong></td><td><code>${esc(u.username)}</code></td>
+        <td><span class="badge badge-${esc(u.role)}">${esc(ROLE_LABELS[u.role] || u.role)}</span></td><td>${link}</td>
+        <td><span class="badge ${on ? 'badge-on' : 'badge-off'}">${on ? 'مفعّل' : 'معطّل'}</span></td>
+        <td class="action-btns">
+          <button class="btn btn-primary btn-sm" onclick="openModal('${esc(u.id)}')">📝 تعديل / صلاحيات</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleActive('${esc(u.id)}')" ${self ? 'disabled' : ''}>${on ? '⛔ تعطيل' : '✅ تفعيل'}</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetPw('${esc(u.id)}')">🔑</button>
+          <button class="btn btn-danger btn-sm" onclick="delUser('${esc(u.id)}')" ${self ? 'disabled' : ''}>🗑️</button>
+        </td></tr>`;
+    }).join('');
+  }
+
+  // ── نافذة الحساب ──
+  function parsePerms(u) {
+    if (u.role === 'admin') return ROLE_PRESETS.admin;
+    try { const p = JSON.parse(u.perms); if (p) return p; } catch (e) { /* افتراضي */ }
+    return ROLE_PRESETS[u.role] || {};
+  }
+  function buildGrid(p) {
+    permGrid.innerHTML = `<thead><tr><th>القسم</th>${ACTIONS.map(a => `<th>${ACTION_LABELS[a]}</th>`).join('')}</tr></thead><tbody>` +
+      RESOURCES.map(r => `<tr><td>${RESOURCE_LABELS[r]}</td>${ACTIONS.map(a =>
+        `<td><input type="checkbox" data-r="${r}" data-a="${a}" ${(p[r] || []).includes(a) ? 'checked' : ''}></td>`).join('')}</tr>`).join('') + '</tbody>';
+  }
+  permGrid.addEventListener('change', e => {
+    const c = e.target; if (!c.dataset.r) return;
+    const row = [...permGrid.querySelectorAll(`input[data-r="${c.dataset.r}"]`)], view = row.find(x => x.dataset.a === 'view');
+    if (c.checked && c.dataset.a !== 'view') view.checked = true;          // أي إجراء يتطلب الاطلاع
+    if (!c.checked && c.dataset.a === 'view') row.forEach(x => x.checked = false);
+  });
+  function collectPerms() {
+    const p = {}; RESOURCES.forEach(r => p[r] = []);
+    permGrid.querySelectorAll('input:checked').forEach(c => p[c.dataset.r].push(c.dataset.a));
+    return p;
+  }
+  const setAll = on => permGrid.querySelectorAll('input').forEach(c => c.checked = on);
+  const applyPreset = () => buildGrid(ROLE_PRESETS[fRole.value] || {});
+
+  function fillInspectorSelect(selectedId) {
+    const taken = new Set(users.filter(u => u.inspectorId && u.id !== editId).map(u => u.inspectorId));
+    const list = inspectors.filter(i => i.stage === fStage.value && !taken.has(i.id)).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    fillSelect(fInsp, list.map(i => [i.id, i.name]), fStage.value ? (list.length ? '-- اختر المفتش --' : 'كل مفتشي المرحلة لديهم حسابات') : '-- اختر المرحلة أولًا --');
+    if (selectedId) fInsp.value = selectedId;
+  }
+  function onRoleChange(initial) {
+    const r = fRole.value;
+    gName.style.display = r === 'inspector' ? 'none' : '';
+    gStage.style.display = gInsp.style.display = r === 'inspector' ? '' : 'none';
+    permBox.style.display = r === 'admin' ? 'none' : '';
+    adminNote.style.display = r === 'admin' ? '' : 'none';
+    if (!initial) applyPreset();
+  }
+  function openModal(id) {
+    editId = id || null;
+    const u = id ? users.find(x => x.id === id) : null;
+    accForm.reset();
+    mTitle.textContent = u ? '📝 تعديل حساب' : '👤 حساب جديد';
+    lPass.textContent = u ? 'كلمة مرور جديدة (اتركها فارغة لعدم التغيير)' : 'كلمة المرور (6 أحرف على الأقل)';
+    fillSelect(fStage, LEVELS, '-- اختر المرحلة --');
+    fRole.value = u ? u.role : 'inspector';
+    fName.value = u ? u.name : '';
+    fUser.value = u ? u.username : '';
+    fActive.checked = u ? u.active !== '0' : true;
+    const insp = u && inspectors.find(i => i.id === u.inspectorId);
+    if (insp) fStage.value = insp.stage;
+    fillInspectorSelect(insp && insp.id);
+    buildGrid(u ? parsePerms(u) : ROLE_PRESETS.inspector);
+    onRoleChange(true);
+    modalEl.classList.add('open');
+  }
+
   accForm.onsubmit = async e => {
     e.preventDefault();
+    const role = fRole.value;
+    const data = { role, username: fUser.value.trim(), active: fActive.checked ? '1' : '0' };
+    if (role === 'inspector') {
+      if (!fInsp.value) { showError('اختر المرحلة ثم اسم المفتش'); return; }
+      data.inspectorId = fInsp.value;
+    } else {
+      if (!fName.value.trim()) { showError('أدخل الاسم الكامل'); return; }
+      data.name = fName.value.trim();
+    }
+    if (role !== 'admin') data.perms = collectPerms();
+    if (fPass.value) data.password = fPass.value;
+    else if (!editId) { showError('أدخل كلمة المرور'); return; }
     try {
       showLoader();
-      await api('insert', { sheet: 'users', data: { name: fName.value, username: fUser.value, role: fRole.value, password: fPass.value } });
-      closeModal(); showSuccess('تم إنشاء الحساب'); await load();
+      await (editId ? api('update', { sheet: 'users', id: editId, data }) : api('insert', { sheet: 'users', data }));
+      closeModal(); showSuccess(editId ? 'تم تحديث الحساب' : 'تم إنشاء الحساب'); await load();
     } catch (ex) { showError(ex.message); }
     hideLoader();
   };
+
+  async function toggleActive(id) {
+    const u = users.find(x => x.id === id), on = u.active !== '0';
+    if (!confirm(on ? `تعطيل حساب «${u.name}»؟ لن يتمكن من الدخول.` : `تفعيل حساب «${u.name}»؟`)) return;
+    try { showLoader(); await api('update', { sheet: 'users', id, data: { active: on ? '0' : '1' } }); await load(); }
+    catch (e) { showError(e.message); }
+    hideLoader();
+  }
   async function resetPw(id) {
     const pw = prompt('كلمة المرور الجديدة (6 أحرف على الأقل):');
     if (!pw) return;
@@ -96,7 +220,7 @@
     hideLoader();
   }
   async function delUser(id) {
-    if (!confirm('حذف هذا الحساب نهائيًا؟')) return;
+    if (!confirm('حذف هذا الحساب نهائيًا؟ (الأفضل تعطيله بدل حذفه)')) return;
     try { showLoader(); await api('delete', { sheet: 'users', id }); await load(); }
     catch (e) { showError(e.message); }
     hideLoader();

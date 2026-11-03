@@ -91,7 +91,7 @@
 <script src="config.js"></script>
 <script src="core.js"></script>
 <script>
-let allVisitsData = [], inspectorsData = [], institutionsData = [];
+let allVisitsData = [], inspectorsData = [], institutionsData = [], ME = null;
 const STAGE_ORDER = ['ابتدائي', 'متوسط', 'ثانوي'];
 const arCmp = (a, b) => a.localeCompare(b, 'ar');
 const visitKey = v => (v.municipality || '') + '|' + v.institution;
@@ -127,11 +127,20 @@ const emptyMsg = t => `<div class="report-page" style="text-align:center;padding
 async function init() {
   showLoader();
   try {
-    const d = await listMany(['visits', 'inspectors', 'institutions', 'settings']);
+    const d = await listMany(['visits', 'inspectors', 'institutions', 'settings'], true);
     allVisitsData = d.visits; inspectorsData = d.inspectors; institutionsData = d.institutions;
     reportState.value = d.settings.directorate || '';
+    if (ME.inspector) { lockForInspector(); hideLoader(); generateReport(); return; }
   } catch (e) { showError(e.message); }
   hideLoader();
+}
+
+// المفتش المرتبط بحساب: تقرير مقاطعته فقط (زياراته خلال الموسم) — والخادم لا يرسل له غيرها أصلًا
+function lockForInspector() {
+  reportType.innerHTML = '<option value="individual">تقرير زياراتي خلال الموسم الدراسي</option>';
+  reportType.disabled = true;
+  stageBox.style.display = inspectorBox.style.display = zeroBox.style.display = 'none';
+  document.querySelector('.controls-card h2').textContent = '📊 تقرير مقاطعتي – ' + ME.inspector.name;
 }
 
 function toggleReportOptions() {
@@ -347,6 +356,7 @@ function generateReport() {
   const t = reportType.value;
   if (t === 'subjects') setPaper(stageFilter.value === 'ثانوي' ? 'a3' : 'a4', 'landscape');
   else setPaper('a4', 'portrait');
+  if (ME && ME.inspector) { individualPage(visits, ME.inspector.name, seasonText, state, container); return; }
   if (t === 'season') renderOverall(visits, seasonText, state, container);
   else if (t === 'individual') {
     if (!inspectorFilter.value) { alert('الرجاء اختيار المفتش'); return; }
@@ -373,7 +383,8 @@ function exportToExcel() {
   XLSX.writeFile(wb, `تقرير_الزيارات_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-if (initPage(['admin', 'inspector', 'manager'])) { reportStartYear.value = currentSeasonStart(); setPaper('a4', 'portrait'); init(); }
+ME = initPage(null, ['visits', 'view']);
+if (ME) { reportStartYear.value = currentSeasonStart(); setPaper('a4', 'portrait'); init(); }
 </script>
 </body>
 </html>

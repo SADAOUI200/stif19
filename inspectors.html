@@ -11,7 +11,7 @@
 <div class="container">
   <div class="page-header"><h2>🔍 <span>إدارة المفتشين</span></h2><span class="badge badge-inspector" id="cnt"></span></div>
 
-  <div class="card fade-in">
+  <div class="card fade-in" id="formCard">
     <div class="card-title" id="formTitle">➕ إضافة مفتش</div>
     <form id="form">
       <div class="form-grid">
@@ -36,7 +36,7 @@
       <select id="qStage" onchange="render()"></select>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>#</th><th>الاسم</th><th>التخصص</th><th>المرحلة</th><th>الرتبة</th><th>الهاتف</th><th>إجراءات</th></tr></thead>
+      <thead><tr><th>#</th><th>الاسم</th><th>التخصص</th><th>المرحلة</th><th>الرتبة</th><th>الهاتف</th><th id="thAct">إجراءات</th></tr></thead>
       <tbody id="body"></tbody>
     </table></div>
   </div>
@@ -44,7 +44,9 @@
 <script src="config.js"></script>
 <script src="core.js"></script>
 <script>
-  let all = [], editId = null;
+  let all = [], editId = null, ME;
+  const CAN_EDIT = can('inspectors', 'edit'), CAN_DEL = can('inspectors', 'delete'), CAN_ADD = can('inspectors', 'add');
+  const actCell = id => (CAN_EDIT || CAN_DEL) ? `<td class="action-btns">${CAN_EDIT ? `<button class="btn btn-primary btn-sm" onclick="edit('${esc(id)}')">📝</button>` : ''}${CAN_DEL ? `<button class="btn btn-danger btn-sm" onclick="del('${esc(id)}')">🗑️</button>` : ''}</td>` : '';
   const val = id => document.getElementById(id).value.trim();
 
   async function load() {
@@ -60,21 +62,19 @@
     body.innerHTML = rows.length ? rows.map((i, k) => `
       <tr><td>${k + 1}</td><td><strong>${esc(i.name)}</strong></td><td>${esc(i.specialty)}</td><td>${esc(i.stage)}</td>
       <td>${esc(i.rank) || '-'}</td><td>${esc(i.phone) || '-'}</td>
-      <td class="action-btns">
-        <button class="btn btn-primary btn-sm" onclick="edit('${esc(i.id)}')">📝</button>
-        <button class="btn btn-danger btn-sm" onclick="del('${esc(i.id)}')">🗑️</button>
-      </td></tr>`).join('')
+      ${actCell(i.id)}</tr>`).join('')
       : '<tr><td colspan="7" class="empty-state"><span class="icon">🔍</span>لا يوجد مفتشون</td></tr>';
   }
   function edit(id) {
     const i = all.find(x => x.id === id); if (!i) return;
-    editId = id; fName.value = i.name; specialty.value = i.specialty; stage.value = i.stage;
+    editId = id; formCard.style.display = ''; fName.value = i.name; specialty.value = i.specialty; stage.value = i.stage;
     rank.value = i.rank; phone.value = i.phone;
     formTitle.textContent = '📝 تعديل مفتش'; saveBtn.textContent = '💾 حفظ التعديلات';
     scrollTo({ top: 0, behavior: 'smooth' });
   }
   function resetForm() {
     editId = null; form.reset(); formTitle.textContent = '➕ إضافة مفتش'; saveBtn.textContent = '💾 حفظ المفتش';
+    formCard.style.display = CAN_ADD ? '' : 'none';
   }
   form.onsubmit = async e => {
     e.preventDefault();
@@ -96,7 +96,8 @@
   fillSelect(stage, LEVELS, '-- اختر المرحلة --');
   fillSelect(rank, INSPECTOR_RANKS, '-- اختر الرتبة --');
   fillSelect(qStage, LEVELS, '-- كل المراحل --');
-  if (initPage(['admin'])) load();
+  ME = initPage(null, ['inspectors', 'view']);
+  if (ME) { if (!CAN_EDIT && !CAN_DEL) thAct.style.display = 'none'; formCard.style.display = CAN_ADD ? '' : 'none'; load(); }
 </script>
 </body>
 </html>

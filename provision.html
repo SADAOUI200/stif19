@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>إنشاء شيت لمديرية جديدة</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="loader-overlay" id="loaderOverlay"><div class="spinner"></div></div>
+<div class="container">
+  <div class="page-header"><h2>🏗️ <span>إنشاء نظام لمديرية جديدة</span></h2></div>
+
+  <div class="card fade-in">
+    <div class="card-title">🔐 مفتاح الإنشاء</div>
+    <div class="form-grid"><div class="form-group"><label>MASTER_KEY (المعرّف في Code.gs)</label>
+      <input type="password" id="masterKey" autocomplete="off" /></div></div>
+  </div>
+
+  <div class="card fade-in">
+    <div class="card-title">➕ بيانات المديرية</div>
+    <form id="form">
+      <div class="form-grid">
+        <div class="form-group"><label>مديرية التربية لولاية <span class="req">*</span></label><input id="stateName" placeholder="مثال: توقرت" required /></div>
+        <div class="form-group"><label>رمز المديرية <span class="req">*</span> (إنجليزي صغير)</label><input id="code" placeholder="مثال: tougourt" pattern="[a-z0-9\-]{2,30}" required dir="ltr" /></div>
+        <div class="form-group"><label>اسم مدير النظام</label><input id="adminName" placeholder="مدير النظام" /></div>
+        <div class="form-group"><label>اسم دخول المدير <span class="req">*</span></label><input id="adminUser" value="admin" required dir="ltr" autocomplete="off" /></div>
+        <div class="form-group"><label>كلمة مرور المدير <span class="req">*</span></label><input type="password" id="adminPass" minlength="6" required autocomplete="new-password" /></div>
+        <div class="form-group full-width"><label>بلديات الولاية (اختياري — كل بلدية في سطر)</label>
+          <textarea id="muns" rows="5"></textarea></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-accent" id="btn" type="submit">🚀 إنشاء الشيت والنظام</button></div>
+    </form>
+  </div>
+
+  <div class="card fade-in" id="result" style="display:none;"></div>
+
+  <div class="card fade-in">
+    <div class="card-title">🗂️ المديريات المنشأة <button class="btn btn-ghost btn-sm" onclick="loadList()" style="margin-right:auto;">🔄 تحديث</button></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>الولاية</th><th>الرمز</th><th>رابط الدخول</th><th>الشيت</th></tr></thead>
+      <tbody id="list"><tr><td colspan="4" class="empty-state">أدخل المفتاح ثم اضغط تحديث</td></tr></tbody>
+    </table></div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script>
+  const loginUrl = c => new URL('index.html?d=' + encodeURIComponent(c), location.href).href;
+
+  async function loadList() {
+    try {
+      showLoader();
+      const d = await api('listTenants', { masterKey: masterKey.value });
+      list.innerHTML = d.length ? d.map(t => `<tr><td><strong>${esc(t.name)}</strong></td><td><code>${esc(t.code)}</code></td>
+        <td><a href="${esc(loginUrl(t.code))}" target="_blank">فتح النظام</a></td>
+        <td><a href="${esc(t.sheetUrl)}" target="_blank">فتح الشيت</a></td></tr>`).join('')
+        : '<tr><td colspan="4" class="empty-state">لا توجد مديريات بعد</td></tr>';
+    } catch (e) { showError(e.message); }
+    hideLoader();
+  }
+
+  form.onsubmit = async e => {
+    e.preventDefault();
+    btn.disabled = true;
+    try {
+      showLoader();
+      const d = await api('provision', {
+        masterKey: masterKey.value, code: code.value.trim().toLowerCase(), name: stateName.value,
+        adminName: adminName.value, adminUsername: adminUser.value, adminPassword: adminPass.value,
+        municipalities: muns.value.split('\n').map(x => x.trim()).filter(Boolean)
+      });
+      result.style.display = 'block';
+      result.innerHTML = `<div class="card-title">✅ تم إنشاء مديرية ${esc(d.name)}</div>
+        <p style="margin-bottom:.75rem;">عدد البلديات المضافة: <strong>${d.municipalities}</strong></p>
+        <p style="margin-bottom:.5rem;">🔗 رابط الدخول: <a href="${esc(loginUrl(d.code))}" target="_blank" dir="ltr">${esc(loginUrl(d.code))}</a></p>
+        <p>📄 الشيت: <a href="${esc(d.sheetUrl)}" target="_blank">فتح في Google Sheets</a></p>`;
+      form.reset(); adminUser.value = 'admin'; await loadList();
+    } catch (ex) { showError(ex.message); }
+    btn.disabled = false; hideLoader();
+  };
+</script>
+</body>
+</html>

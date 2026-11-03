@@ -26,8 +26,12 @@
 <script src="config.js"></script>
 <script src="core.js"></script>
 <script>
+  getTenant(); // يلتقط ?d= ويصفّر الجلسة عند تغيير المديرية
   const s = getSession();
-  if (s) location.href = homePage(s.user.role);
+  if (s) location.href = homePage(s.user);
+
+  const _m = sessionStorage.getItem('visits_msg');
+  if (_m) { sessionStorage.removeItem('visits_msg'); const e = document.getElementById('loginError'); e.textContent = _m; e.style.display = 'block'; }
 
   api('publicInfo').then(d => {
     if (d.directorate) document.getElementById('dirName').textContent = 'مديرية التربية لولاية ' + d.directorate;
@@ -40,7 +44,7 @@
     try {
       const d = await api('login', { username: username.value, password: password.value });
       setSession(d);
-      location.href = homePage(d.user.role);
+      location.href = homePage(d.user);
     } catch (ex) {
       err.textContent = ex.message; err.style.display = 'block';
       btn.disabled = false; btn.textContent = '🔐 دخول';
